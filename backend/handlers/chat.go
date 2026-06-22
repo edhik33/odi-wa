@@ -86,6 +86,8 @@ func UpdateKnowledge(c *gin.Context) {
 }
 
 func DeleteKnowledge(c *gin.Context) {
-	database.DB.Where("agent_id = ?", currentAgentID(c)).Delete(&models.Knowledge{}, c.Param("kid"))
+	aid := currentAgentID(c)
+	database.DB.Where("agent_id = ?", aid).Delete(&models.Knowledge{}, c.Param("kid"))
+	services.InvalidateKB(aid) // refresh cache memori
 	c.JSON(200, gin.H{"message": "Deleted"})
 }

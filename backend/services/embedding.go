@@ -7,6 +7,7 @@ import (
 	"log"
 	"math"
 	"strconv"
+	"sync"
 
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
@@ -14,6 +15,55 @@ import (
 
 	openai "github.com/sashabaranov/go-openai"
 )
+
+// KBItem = satu knowledge dengan vektor embedding yang sudah di-parse (siap pakai).
+type KBItem struct {
+	K   models.Knowledge
+	Vec []float32
+}
+
+// Cache knowledge per-agent di memori: hindari query DB + unmarshal JSON tiap pesan masuk.
+var (
+	kbCache = map[uint][]KBItem{}
+	kbDirty = map[uint]bool{}
+	kbMu    sync.RWMutex
+)
+
+// InvalidateKB menandai cache knowledge sebuah agent perlu dimuat ulang (dipanggil saat ada perubahan).
+func InvalidateKB(agentID uint) {
+	kbMu.Lock()
+	kbDirty[agentID] = true
+	kbMu.Unlock()
+}
+
+// KnowledgeFor mengembalikan knowledge agent dari cache memori (embedding sudah di-parse).
+// DB hanya di-query saat pertama kali atau setelah ada perubahan (create/update/delete).
+func KnowledgeFor(agentID uint) []KBItem {
+	kbMu.RLock()
+	items, ok := kbCache[agentID]
+	dirty := kbDirty[agentID]
+	kbMu.RUnlock()
+	if ok && !dirty {
+		return items
+	}
+
+	var rows []models.Knowledge
+	database.DB.Where("agent_id = ?", agentID).Find(&rows)
+	items = make([]KBItem, 0, len(rows))
+	for _, r := range rows {
+		var vec []float32
+		if r.Embedding != "" {
+			_ = json.Unmarshal([]byte(r.Embedding), &vec)
+		}
+		r.Embedding = "" // hemat memori: vektor sudah disimpan terpisah di Vec
+		items = append(items, KBItem{K: r, Vec: vec})
+	}
+	kbMu.Lock()
+	kbCache[agentID] = items
+	kbDirty[agentID] = false
+	kbMu.Unlock()
+	return items
+}
 
 var (
 	embClient  *openai.Client
@@ -88,6 +138,7 @@ func knowledgeText(k *models.Knowledge) string {
 
 // IndexKnowledge menghitung embedding satu knowledge lalu menyimpannya ke kolom embedding.
 func IndexKnowledge(k *models.Knowledge) {
+	InvalidateKB(k.AgentID) // isi knowledge berubah -> cache agent ini perlu di-refresh
 	if !embEnabled {
 		return
 	}

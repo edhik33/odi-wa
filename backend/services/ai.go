@@ -2,12 +2,10 @@ package services
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"sort"
 	"strings"
 	"wa-assistant/backend/config"
-	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -105,21 +103,20 @@ func toneInstruction(tone string) string {
 }
 
 func searchKnowledge(agentID uint, msg string) []models.Knowledge {
-	var all []models.Knowledge
-	database.DB.Where("agent_id = ?", agentID).Find(&all)
-	if len(all) == 0 {
+	items := KnowledgeFor(agentID) // dari cache memori (embedding sudah di-parse)
+	if len(items) == 0 {
 		return nil
 	}
 
 	if EmbeddingEnabled() {
-		if relevant, ok := semanticSearch(msg, all); ok {
+		if relevant, ok := semanticSearch(msg, items); ok {
 			return relevant
 		}
 	}
-	return keywordSearch(msg, all)
+	return keywordSearch(msg, items)
 }
 
-func semanticSearch(msg string, all []models.Knowledge) ([]models.Knowledge, bool) {
+func semanticSearch(msg string, items []KBItem) ([]models.Knowledge, bool) {
 	qVec, err := Embed(msg)
 	if err != nil {
 		log.Printf("Embedding: query gagal, fallback keyword: %v", err)
@@ -131,15 +128,11 @@ func semanticSearch(msg string, all []models.Knowledge) ([]models.Knowledge, boo
 		sim float32
 	}
 	var ranked []scored
-	for _, k := range all {
-		if k.Embedding == "" {
+	for _, it := range items {
+		if len(it.Vec) == 0 {
 			continue
 		}
-		var vec []float32
-		if json.Unmarshal([]byte(k.Embedding), &vec) != nil || len(vec) == 0 {
-			continue
-		}
-		ranked = append(ranked, scored{k, cosineSim(qVec, vec)})
+		ranked = append(ranked, scored{it.K, cosineSim(qVec, it.Vec)})
 	}
 	if len(ranked) == 0 {
 		return nil, false // belum ada yang ter-embed -> biar keyword yang jalan
@@ -157,10 +150,11 @@ func semanticSearch(msg string, all []models.Knowledge) ([]models.Knowledge, boo
 	return relevant, true
 }
 
-func keywordSearch(msg string, all []models.Knowledge) []models.Knowledge {
+func keywordSearch(msg string, items []KBItem) []models.Knowledge {
 	var relevant []models.Knowledge
 	lower := strings.ToLower(msg)
-	for _, k := range all {
+	for _, it := range items {
+		k := it.K
 		tagMatch := false
 		for _, tag := range strings.Split(k.Tags, ",") {
 			t := strings.ToLower(strings.TrimSpace(tag))

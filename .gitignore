@@ -1,5 +1,6 @@
 # Binary
 wa-server
+wa-server-linux
 wa-assistant
 
 # Environment
@@ -8,6 +9,9 @@ wa-assistant
 
 # Database
 *.db
+*.db-shm
+*.db-wal
+data/
 
 # Frontend
 frontend/node_modules
