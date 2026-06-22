@@ -21,9 +21,9 @@ const TONES = [
 ];
 
 export default function Dashboard() {
-  const [tab, setTab] = useState(0);
+  const [tab, setTab] = useState(() => Number(localStorage.getItem('wai_tab')) || 0);
   const [agents, setAgents] = useState<any[]>([]);
-  const [agentId, setAgentId] = useState<number>(0);
+  const [agentId, setAgentId] = useState<number>(() => Number(localStorage.getItem('wai_agent')) || 0);
   const [status, setStatus] = useState('');
   const [qr, setQr] = useState('');
   const [waNumber, setWaNumber] = useState('');
@@ -42,8 +42,6 @@ export default function Dashboard() {
   const [genCount, setGenCount] = useState(5);
   const [genLoading, setGenLoading] = useState(false);
   const [statusMap, setStatusMap] = useState<{ [k: string]: string }>({});
-  const [importText, setImportText] = useState('');
-  const [importing, setImporting] = useState(false);
   const [handoffs, setHandoffs] = useState<any[]>([]);
   const user = JSON.parse(localStorage.getItem('user') || '{}');
 
@@ -53,7 +51,7 @@ export default function Dashboard() {
       const list = r.data.data || [];
       setAgents(list);
       if (selectId) setAgentId(selectId);
-      else if (!agentId && list.length) setAgentId(list[0].id);
+      else if (list.length && !list.some((a: any) => a.id === agentId)) setAgentId(list[0].id);
     } catch {}
   };
 
@@ -76,6 +74,10 @@ export default function Dashboard() {
   };
 
   useEffect(() => { loadAgents(); }, []);
+
+  // Simpan tab & CS terpilih supaya tidak balik ke awal saat refresh.
+  useEffect(() => { localStorage.setItem('wai_tab', String(tab)); }, [tab]);
+  useEffect(() => { if (agentId) localStorage.setItem('wai_agent', String(agentId)); }, [agentId]);
 
   // Polling status semua CS untuk titik indikator (tidak menyentuh form/persona).
   useEffect(() => {
@@ -152,21 +154,6 @@ export default function Dashboard() {
     setGenLoading(false);
   };
 
-  const importKnowledge = async () => {
-    if (!importText.trim()) return;
-    let items: any;
-    try { items = JSON.parse(importText); } catch { alert('JSON tidak valid'); return; }
-    if (!Array.isArray(items)) { alert('Format harus array JSON: [{ "question": "...", "answer": "...", "tags": "..." }]'); return; }
-    setImporting(true);
-    try {
-      const r = await api.post(`/agents/${agentId}/knowledge/import`, { items });
-      alert(`Impor selesai: ${r.data.created} baru, ${r.data.updated} diperbarui`);
-      setImportText('');
-      loadData(agentId);
-    } catch { alert('Gagal impor'); }
-    setImporting(false);
-  };
-
   const dotColor = (s?: string) => (s === 'connected' ? '#25D366' : s === 'qr' ? '#ffa726' : '#bdbdbd');
 
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
@@ -219,13 +206,13 @@ export default function Dashboard() {
             </Typography>
             <Card sx={{ mb: 2 }}>
               <CardContent sx={{ display: 'flex', flexDirection: { xs: 'column', md: 'row' }, alignItems: { xs: 'flex-start', md: 'center' }, justifyContent: 'space-between', gap: 2 }}>
-                <Box>
-                  <Chip label={sl} color={sc} />
-                  <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>Status WhatsApp</Typography>
+                <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.75, textAlign: 'left' }}>
+                  <Typography variant="overline" color="text.secondary" sx={{ lineHeight: 1.2 }}>Status WhatsApp</Typography>
+                  <Chip label={sl} color={sc} size="small" />
                   {status === 'connected' && waNumber && (
-                    <Box sx={{ mt: 1 }}>
-                      <Typography variant="body2" sx={{ fontWeight: 700 }}>{waName || 'Tanpa nama profil'}</Typography>
-                      <Typography variant="caption" color="text.secondary">+{waNumber}</Typography>
+                    <Box>
+                      <Typography variant="body1" sx={{ fontWeight: 700, lineHeight: 1.3 }}>{waName || 'Tanpa nama profil'}</Typography>
+                      <Typography variant="body2" color="text.secondary">+{waNumber}</Typography>
                     </Box>
                   )}
                 </Box>
@@ -313,23 +300,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            {/* Import JSON */}
-            <Card sx={{ mb: 2 }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Import dari JSON</Typography>
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  Tempel array JSON berisi objek question, answer, tags. Pertanyaan yang sama akan diperbarui (bukan dobel).
-                </Typography>
-                <TextField multiline rows={4} fullWidth size="small" value={importText}
-                  onChange={e => setImportText(e.target.value)}
-                  placeholder='[{"question":"...","answer":"...","tags":"..."}]' sx={{ mb: 1 }} />
-                <Button variant="outlined" onClick={importKnowledge} disabled={importing}
-                  startIcon={importing ? <CircularProgress size={16} /> : <AddIcon />}>
-                  Import
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Manual Add */}
             <Card sx={{ mb: 2 }}>
               <CardContent>
@@ -369,15 +339,22 @@ export default function Dashboard() {
               <CardContent>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>Nama CS</Typography>
                 <TextField fullWidth size="small" value={agentName} onChange={e => setAgentName(e.target.value)} sx={{ mb: 2 }} />
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>Tone / Gaya Bahasa AI</Typography>
+                <Typography variant="subtitle2" sx={{ mb: 0.25 }}>Tone / Gaya Bahasa</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  CARA bot bicara (ramah / formal / santai / persuasif).
+                </Typography>
                 <FormControl fullWidth size="small" sx={{ mb: 2 }}>
                   <InputLabel>Tone</InputLabel>
                   <Select value={tone} label="Tone" onChange={e => setTone(e.target.value)}>
                     {TONES.map(t => <MenuItem key={t.value} value={t.value}>{t.label}</MenuItem>)}
                   </Select>
                 </FormControl>
-                <Typography variant="subtitle2" sx={{ mb: 1 }}>System Prompt (persona)</Typography>
-                <TextField multiline rows={5} fullWidth value={prompt} onChange={e => setPrompt(e.target.value)} />
+                <Typography variant="subtitle2" sx={{ mb: 0.25 }}>System Prompt (Persona)</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
+                  SIAPA bot ini & tugasnya: identitas bisnis, peran, batasan, aturan. Contoh: "Kamu admin Sedekah Bekas di Yogyakarta. Bantu pertanyaan donasi barang bekas. Jangan bahas di luar topik."
+                </Typography>
+                <TextField multiline rows={5} fullWidth value={prompt} onChange={e => setPrompt(e.target.value)}
+                  placeholder='Contoh: Kamu admin "Toko Maju Jaya", jual sparepart motor. Bantu pelanggan soal stok, harga, & cara order.' />
                 <Button variant="contained" onClick={saveAgent} sx={{ mt: 1 }}>{saved ? 'Tersimpan ✓' : 'Simpan'}</Button>
               </CardContent>
             </Card>
