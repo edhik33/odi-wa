@@ -105,12 +105,23 @@ export interface NumberCheck {
 export interface Broadcast {
   id: number;
   message: string;
-  status: string; // pending, running, done, failed
+  status: string; // pending, running, done, interrupted
   total: number;
   sent: number;
   failed: number;
   skipped: number;
+  media_type: string;
+  file_name: string;
   created_at: string;
+}
+
+export interface BroadcastRecipient {
+  id: number;
+  number: string;
+  name: string;
+  status: string; // pending, sent, failed, skipped
+  error: string;
+  sent_at: string | null;
 }
 
 export interface WAGroup {

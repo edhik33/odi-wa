@@ -8,7 +8,7 @@ import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useCheckNumbers, useCreateBroadcast, useBroadcasts } from '../hooks';
+import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail } from '../hooks';
 import RecipientField from './RecipientField';
 import PageHeader from './PageHeader';
 import type { NumberCheck } from '../types';
@@ -24,6 +24,9 @@ function normalizePhone(s: string): string {
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   done: 'success', running: 'warning', pending: 'default', interrupted: 'error',
 };
+const RCP_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
+  sent: 'success', failed: 'error', skipped: 'default', pending: 'warning',
+};
 
 export default function BroadcastPanel({ agentId }: { agentId: number }) {
   const [message, setMessage] = useState('');
@@ -36,9 +39,12 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
   const [checked, setChecked] = useState<NumberCheck[] | null>(null);
   const [page, setPage] = useState(1);
 
+  const [detailId, setDetailId] = useState<number | null>(null);
+
   const checkNumbers = useCheckNumbers(agentId);
   const createBroadcast = useCreateBroadcast(agentId);
   const { data: bpage } = useBroadcasts(agentId, page);
+  const { data: detail } = useBroadcastDetail(agentId, detailId);
   const broadcasts = bpage?.data || [];
   const totalPages = Math.max(1, Math.ceil((bpage?.total || 0) / (bpage?.limit || 10)));
 
@@ -138,7 +144,7 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
                   const done = b.sent + b.failed + b.skipped;
                   const pct = b.total ? Math.round((done / b.total) * 100) : 0;
                   return (
-                    <TableRow key={b.id} hover>
+                    <TableRow key={b.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetailId(b.id)}>
                       <TableCell>{new Date(b.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</TableCell>
                       <TableCell sx={{ maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.message}</TableCell>
                       <TableCell align="center"><Chip label={b.status} size="small" color={STATUS_COLOR[b.status] ?? 'default'} /></TableCell>
@@ -161,6 +167,53 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
           </CardContent>
         </Card>
       )}
+
+      {/* Detail broadcast: status per penerima */}
+      <Dialog open={!!detailId} onClose={() => setDetailId(null)} fullWidth maxWidth="sm">
+        <DialogTitle>Detail Broadcast</DialogTitle>
+        <DialogContent dividers>
+          {detail ? (
+            <>
+              <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap', mb: 1 }}>{detail.broadcast.message}</Typography>
+              {detail.broadcast.media_type && (
+                <Chip size="small" label={`📎 ${detail.broadcast.file_name || detail.broadcast.media_type}`} sx={{ mb: 1.5 }} />
+              )}
+              <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap', gap: 1 }}>
+                <Chip size="small" color="success" label={`${detail.broadcast.sent} terkirim`} />
+                <Chip size="small" color="error" label={`${detail.broadcast.failed} gagal`} />
+                <Chip size="small" label={`${detail.broadcast.skipped} dilewati`} />
+                <Chip size="small" variant="outlined" label={`total ${detail.broadcast.total}`} />
+              </Stack>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>Nomor</TableCell>
+                    <TableCell>Nama</TableCell>
+                    <TableCell align="right">Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {detail.recipients.map(r => (
+                    <TableRow key={r.id}>
+                      <TableCell>+{r.number}</TableCell>
+                      <TableCell>{r.name || '-'}</TableCell>
+                      <TableCell align="right">
+                        <Chip size="small" label={r.status} color={RCP_COLOR[r.status] ?? 'default'} />
+                        {r.error && <Typography variant="caption" color="error" sx={{ display: 'block' }}>{r.error}</Typography>}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </>
+          ) : (
+            <Box sx={{ textAlign: 'center', py: 3 }}><CircularProgress /></Box>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDetailId(null)}>Tutup</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Modal: cek nomor lalu kirim */}
       <Dialog open={modalOpen} onClose={() => !createBroadcast.isPending && setModalOpen(false)} fullWidth maxWidth="sm">

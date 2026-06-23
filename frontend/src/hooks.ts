@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, WAGroup, LabelInfo, ScheduledMessage } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -234,6 +234,15 @@ export function useCancelSchedule(agentId: number) {
   return useMutation({
     mutationFn: async (sid: number) => (await api.delete(`/agents/${agentId}/schedule/${sid}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['schedules', agentId] }),
+  });
+}
+
+export function useBroadcastDetail(agentId: number, bid: number | null) {
+  return useQuery<{ broadcast: Broadcast; recipients: BroadcastRecipient[] }>({
+    queryKey: ['broadcast', agentId, bid],
+    queryFn: async () => (await api.get(`/agents/${agentId}/broadcasts/${bid}`)).data.data,
+    enabled: !!agentId && !!bid,
+    refetchInterval: 4000,
   });
 }
 

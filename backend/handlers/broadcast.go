@@ -253,6 +253,22 @@ func ListBroadcasts(c *gin.Context) {
 	c.JSON(200, gin.H{"data": bs, "total": total, "page": page, "limit": limit})
 }
 
+// BroadcastDetail = detail satu broadcast beserta status tiap penerima.
+func BroadcastDetail(c *gin.Context) {
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	var b models.Broadcast
+	if database.DB.Where("id = ? AND agent_id = ?", c.Param("bid"), id).First(&b).Error != nil {
+		c.JSON(404, gin.H{"error": "Broadcast tidak ditemukan"})
+		return
+	}
+	var recipients []models.BroadcastRecipient
+	database.DB.Where("broadcast_id = ?", b.ID).Order("id asc").Find(&recipients)
+	c.JSON(200, gin.H{"data": gin.H{"broadcast": b, "recipients": recipients}})
+}
+
 // optedOutSet mengembalikan himpunan nomor yang sudah opt-out untuk agent ini.
 func optedOutSet(agentID uint) map[string]bool {
 	var nums []string
