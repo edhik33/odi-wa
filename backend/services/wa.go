@@ -220,7 +220,9 @@ func (w *waInstance) watchQR(qrChan <-chan whatsmeow.QRChannelItem) {
 		if jid != nil {
 			w.status = "connected"
 		} else {
-			w.status = "disconnected"
+			// Jendela pairing whatsmeow habis (event "timeout"/"error") tanpa tertaut.
+			// Tandai "expired" agar frontend bisa menampilkan "QR kedaluwarsa, muat ulang".
+			w.status = "expired"
 		}
 		w.mu.Unlock()
 		if jid != nil && onLinked != nil {

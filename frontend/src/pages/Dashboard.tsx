@@ -673,6 +673,13 @@ export default function Dashboard() {
               <Typography sx={{ mt: 1, fontWeight: 600 }}>{waName || 'Tersambung'}{waNumber ? ` · +${waNumber}` : ''}</Typography>
               <Typography variant="caption" color="text.secondary">Berhasil tersambung. Menutup otomatis…</Typography>
             </Box>
+          ) : status === 'expired' ? (
+            <Box sx={{ py: 4, px: 2 }}>
+              <Typography variant="body2" color="warning.main" sx={{ fontWeight: 600, mb: 0.5 }}>QR kedaluwarsa</Typography>
+              <Typography variant="caption" color="text.secondary">
+                Jendela scan sudah habis. Klik "Muat ulang QR" untuk membuat kode baru.
+              </Typography>
+            </Box>
           ) : qr ? (
             <>
               {riskAck ? (
@@ -690,7 +697,7 @@ export default function Dashboard() {
                     <LinearProgress variant="determinate" value={(qrSeconds / QR_TTL) * 100}
                       color={qrSeconds > 5 ? 'primary' : 'warning'} sx={{ height: 6, borderRadius: 3 }} />
                     <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                      {qrSeconds > 0 ? `QR menyegar dalam ${qrSeconds} detik` : 'Menyegarkan QR…'}
+                      {qrSeconds > 0 ? `Kode diperbarui otomatis dalam ${qrSeconds} detik` : 'Memuat kode baru…'}
                     </Typography>
                   </Box>
                 </>
