@@ -124,6 +124,15 @@ export interface BroadcastRecipient {
   sent_at: string | null;
 }
 
+export interface AutoReply {
+  id: number;
+  keywords: string;
+  match_type: string; // contains, exact, prefix
+  reply: string;
+  enabled: boolean;
+  sort_order: number;
+}
+
 export interface WAGroup {
   jid: string;
   name: string;

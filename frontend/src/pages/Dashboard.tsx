@@ -19,6 +19,7 @@ import TestChatPanel from '../components/TestChatPanel';
 import AnalyticsPanel from '../components/AnalyticsPanel';
 import BroadcastPanel from '../components/BroadcastPanel';
 import CalendarPanel from '../components/CalendarPanel';
+import AutoReplyPanel from '../components/AutoReplyPanel';
 import PageHeader from '../components/PageHeader';
 
 const TONES = [
@@ -181,7 +182,7 @@ export default function Dashboard() {
   const dotColor = (s?: string) => (s === 'connected' ? '#25D366' : s === 'qr' ? '#ffa726' : '#bdbdbd');
 
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
-  const tabs = ['Dashboard', 'Inbox', 'Coba Chat', 'Knowledge Base', 'Analitik', 'Broadcast', 'Kalender', 'Settings', 'Langganan'];
+  const tabs = ['Dashboard', 'Inbox', 'Coba Chat', 'Knowledge Base', 'Analitik', 'Broadcast', 'Kalender', 'Auto-Reply', 'Settings', 'Langganan'];
   const sc = status === 'connected' ? 'success' : status === 'qr' ? 'warning' : 'error';
   const sl = status === 'connected' ? 'Online' : status === 'qr' ? 'Scan QR' : 'Offline';
   const currentAgent = agents.find(a => a.id === agentId);
@@ -351,7 +352,7 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 7 && (
+        {tab === 8 && (
           <Box>
             <PageHeader title={<><SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />Pengaturan {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
             <Card sx={{ mb: 2 }}>
@@ -419,12 +420,13 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 8 && <BillingPanel />}
+        {tab === 9 && <BillingPanel />}
         {tab === 1 && <InboxPanel agentId={agentId} />}
         {tab === 2 && <TestChatPanel agentId={agentId} />}
         {tab === 4 && <AnalyticsPanel agentId={agentId} />}
         {tab === 5 && <BroadcastPanel agentId={agentId} />}
         {tab === 6 && <CalendarPanel agentId={agentId} />}
+        {tab === 7 && <AutoReplyPanel agentId={agentId} />}
       </Box>
     </Box>
   );

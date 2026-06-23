@@ -42,7 +42,7 @@ func Init() {
 		&models.Knowledge{}, &models.Handoff{},
 		&models.Plan{}, &models.Tenant{}, &models.Subscription{}, &models.Invoice{}, &models.AIUsage{},
 		&models.Broadcast{}, &models.BroadcastRecipient{}, &models.OptOut{},
-		&models.ScheduledMessage{}, &models.Label{}, &models.ChatLabel{},
+		&models.ScheduledMessage{}, &models.Label{}, &models.ChatLabel{}, &models.AutoReply{},
 	)
 
 	seedPlans()

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -208,6 +208,35 @@ export function useLabels(agentId: number) {
 
 export function useLabelContacts(agentId: number) {
   return useMutation({ mutationFn: async (labelId: string) => (await api.get(`/agents/${agentId}/label-contacts`, { params: { label_id: labelId } })).data.data as ContactList });
+}
+
+// ---- Auto-reply (kata kunci) ----
+
+export function useAutoReplies(agentId: number) {
+  return useQuery<AutoReply[]>({
+    queryKey: ['autoreplies', agentId],
+    queryFn: async () => (await api.get(`/agents/${agentId}/auto-replies`)).data.data,
+    enabled: !!agentId,
+  });
+}
+
+export function useSaveAutoReply(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (r: Partial<AutoReply>) =>
+      r.id
+        ? (await api.put(`/agents/${agentId}/auto-replies/${r.id}`, r)).data
+        : (await api.post(`/agents/${agentId}/auto-replies`, r)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['autoreplies', agentId] }),
+  });
+}
+
+export function useDeleteAutoReply(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (rid: number) => (await api.delete(`/agents/${agentId}/auto-replies/${rid}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['autoreplies', agentId] }),
+  });
 }
 
 // ---- Jadwal (kalender) ----

@@ -158,6 +158,13 @@ func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 		send(agent.GreetingMessage)
 	}
 
+	// 3b. Auto-reply kata kunci (instan, tanpa AI) -> dicek sebelum AI agar cepat & hemat biaya.
+	if reply, matched := matchAutoReply(agentID, in.Text); matched {
+		send(reply)
+		logRow(displayText, reply)
+		return
+	}
+
 	// 4. Media tanpa caption -> bot belum bisa memahaminya -> alihkan ke manusia.
 	if in.MediaType != "" && in.Text == "" {
 		ack := "Terima kasih kak 🙏 file/medianya sudah kami terima, akan segera kami cek ya."
