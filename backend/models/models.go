@@ -40,7 +40,7 @@ type Agent struct {
 type ChatHistory struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AgentID   uint      `gorm:"index" json:"agent_id"`
-	Sender    string    `gorm:"index" json:"sender"`
+	Sender    string    `gorm:"index;size:32" json:"sender"`
 	Message   string    `json:"message"`
 	Reply     string    `json:"reply"`
 	FromHuman bool      `gorm:"not null;default:false" json:"from_human"` // true = balasan dikirim manusia dari inbox
@@ -56,7 +56,7 @@ type ChatHistory struct {
 type Handoff struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AgentID   uint      `gorm:"index" json:"agent_id"`
-	Sender    string    `gorm:"index" json:"sender"`
+	Sender    string    `gorm:"index;size:32" json:"sender"`
 	LastMsg   string    `gorm:"type:text" json:"last_msg"`
 	CreatedAt time.Time `json:"created_at"`
 }
