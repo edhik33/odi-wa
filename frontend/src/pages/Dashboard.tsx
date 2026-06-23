@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Fragment } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, Chip, CircularProgress, TextField,
   Stack, IconButton, Paper, Grid, Select, MenuItem, FormControl, InputLabel, Divider,
@@ -50,20 +50,31 @@ const TONES = [
   { value: 'custom', label: '✏️ Custom' },
 ];
 
-const NAV_ITEMS = [
-  { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon fontSize="small" /> },
-  { id: 'inbox', label: 'Inbox', icon: <InboxIcon fontSize="small" /> },
-  { id: 'kontak', label: 'Kontak', icon: <ContactsIcon fontSize="small" /> },
-  { id: 'coba-chat', label: 'Coba Chat', icon: <ChatIcon fontSize="small" /> },
-  { id: 'knowledge', label: 'Knowledge', icon: <KnowledgeIcon fontSize="small" /> },
-  { id: 'broadcast', label: 'Broadcast', icon: <CampaignIcon fontSize="small" /> },
-  { id: 'kalender', label: 'Kalender', icon: <CalendarIcon fontSize="small" /> },
-  { id: 'auto-reply', label: 'Auto-Reply', icon: <RuleIcon fontSize="small" /> },
-  { id: 'template', label: 'Template', icon: <TemplateIcon fontSize="small" /> },
-  { id: 'follow-up', label: 'Follow-up', icon: <FollowUpIcon fontSize="small" /> },
-  { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
-  { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
+const NAV_GROUPS = [
+  { section: '', items: [
+    { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon fontSize="small" /> },
+  ] },
+  { section: 'Percakapan', items: [
+    { id: 'inbox', label: 'Inbox', icon: <InboxIcon fontSize="small" /> },
+    { id: 'kontak', label: 'Kontak', icon: <ContactsIcon fontSize="small" /> },
+  ] },
+  { section: 'AI & Otomasi', items: [
+    { id: 'knowledge', label: 'Knowledge', icon: <KnowledgeIcon fontSize="small" /> },
+    { id: 'auto-reply', label: 'Auto-Reply', icon: <RuleIcon fontSize="small" /> },
+    { id: 'template', label: 'Template', icon: <TemplateIcon fontSize="small" /> },
+    { id: 'coba-chat', label: 'Coba Chat', icon: <ChatIcon fontSize="small" /> },
+  ] },
+  { section: 'Kampanye', items: [
+    { id: 'broadcast', label: 'Broadcast', icon: <CampaignIcon fontSize="small" /> },
+    { id: 'kalender', label: 'Kalender', icon: <CalendarIcon fontSize="small" /> },
+    { id: 'follow-up', label: 'Follow-up', icon: <FollowUpIcon fontSize="small" /> },
+  ] },
+  { section: 'Akun', items: [
+    { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
+    { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
+  ] },
 ];
+const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
 
 export default function Dashboard() {
   const [tab, setTab] = useState(() => {
@@ -298,23 +309,40 @@ export default function Dashboard() {
             scrollbarWidth: 'thin',
           }}
         >
-          {NAV_ITEMS.map((item) => (
-            <Button
-              key={item.id}
-              variant={tab === item.id ? 'contained' : 'text'}
-              startIcon={item.icon}
-              onClick={() => setTab(item.id)}
-              sx={{
-                justifyContent: { xs: 'center', md: 'flex-start' },
-                minWidth: { xs: 'max-content', md: '100%' },
-                height: 32,
-                px: 1.1,
-                color: tab === item.id ? 'primary.contrastText' : 'text.primary',
-                '& .MuiButton-startIcon': { mr: 0.75 },
-              }}
-            >
-              {item.label}
-            </Button>
+          {NAV_GROUPS.map((group, gi) => (
+            <Fragment key={group.section || 'main'}>
+              {group.section && (
+                <Typography
+                  variant="caption"
+                  sx={{
+                    display: { xs: 'none', md: 'block' },
+                    px: 1.1, mt: gi === 0 ? 0 : 1.5, mb: 0.25,
+                    fontWeight: 700, fontSize: '0.62rem', letterSpacing: '0.06em',
+                    textTransform: 'uppercase', color: 'text.disabled', lineHeight: 1.6,
+                  }}
+                >
+                  {group.section}
+                </Typography>
+              )}
+              {group.items.map((item) => (
+                <Button
+                  key={item.id}
+                  variant={tab === item.id ? 'contained' : 'text'}
+                  startIcon={item.icon}
+                  onClick={() => setTab(item.id)}
+                  sx={{
+                    justifyContent: { xs: 'center', md: 'flex-start' },
+                    minWidth: { xs: 'max-content', md: '100%' },
+                    height: 32,
+                    px: 1.1,
+                    color: tab === item.id ? 'primary.contrastText' : 'text.primary',
+                    '& .MuiButton-startIcon': { mr: 0.75 },
+                  }}
+                >
+                  {item.label}
+                </Button>
+              ))}
+            </Fragment>
           ))}
         </Box>
         <Box sx={{ flex: 1, display: { xs: 'none', md: 'block' } }} />
