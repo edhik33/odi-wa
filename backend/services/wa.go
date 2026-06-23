@@ -20,8 +20,17 @@ import (
 	_ "github.com/mattn/go-sqlite3"
 )
 
+// IncomingMessage = isi pesan masuk (teks dan/atau media).
+type IncomingMessage struct {
+	Text      string // teks chat biasa atau caption media
+	MediaType string // "", image, document, audio, video, sticker
+	Mimetype  string
+	FileName  string
+	Data      []byte
+}
+
 // MessageHandler dipanggil tiap pesan masuk, membawa ID agent (CS) penerima.
-type MessageHandler func(agentID uint, sender types.JID, msg string)
+type MessageHandler func(agentID uint, sender types.JID, in IncomingMessage)
 
 // DeviceLinkedHandler dipanggil saat agent berhasil login via QR.
 type DeviceLinkedHandler func(agentID uint, jid, number string)
@@ -191,21 +200,17 @@ func (w *waInstance) handleEvent(evt interface{}) {
 		}
 		_ = w.client.MarkRead(context.Background(), []types.MessageID{v.Info.ID}, time.Now(), v.Info.Chat, v.Info.Sender)
 
-		text := v.Message.GetConversation()
-		if text == "" {
-			if ext := v.Message.GetExtendedTextMessage(); ext != nil {
-				text = ext.GetText()
-			}
+		in, ok := w.extractIncoming(v)
+		if !ok || onMessage == nil {
+			return
 		}
-		if text != "" && onMessage != nil {
-			// Kontak modern bisa beralamat LID (privasi). Pakai nomor telepon asli (SenderAlt)
-			// agar yang tersimpan & ditampilkan adalah nomor WA betulan, bukan angka LID.
-			contact := v.Info.Sender
-			if contact.Server == types.HiddenUserServer && !v.Info.SenderAlt.IsEmpty() {
-				contact = v.Info.SenderAlt
-			}
-			go onMessage(w.agentID, contact, text)
+		// Kontak modern bisa beralamat LID (privasi). Pakai nomor telepon asli (SenderAlt)
+		// agar yang tersimpan & ditampilkan adalah nomor WA betulan, bukan angka LID.
+		contact := v.Info.Sender
+		if contact.Server == types.HiddenUserServer && !v.Info.SenderAlt.IsEmpty() {
+			contact = v.Info.SenderAlt
 		}
+		go onMessage(w.agentID, contact, in)
 	}
 }
 
@@ -252,6 +257,117 @@ func (w *waInstance) Logout() error {
 // SendText mengirim pesan ke nomor bare (mis "628123") tanpa pemanggil perlu menyusun JID.
 func (w *waInstance) SendText(toNumber, message string) error {
 	return w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message)
+}
+
+// extractIncoming mengubah pesan WA jadi IncomingMessage (teks atau media yang sudah di-download).
+func (w *waInstance) extractIncoming(v *events.Message) (IncomingMessage, bool) {
+	m := v.Message
+	if t := m.GetConversation(); t != "" {
+		return IncomingMessage{Text: t}, true
+	}
+	if ext := m.GetExtendedTextMessage(); ext != nil && ext.GetText() != "" {
+		return IncomingMessage{Text: ext.GetText()}, true
+	}
+	ctx := context.Background()
+	switch {
+	case m.GetImageMessage() != nil:
+		img := m.GetImageMessage()
+		data, err := w.client.Download(ctx, img)
+		if err != nil {
+			log.Printf("WA agent %d: gagal download gambar: %v", w.agentID, err)
+			return IncomingMessage{}, false
+		}
+		return IncomingMessage{Text: img.GetCaption(), MediaType: "image", Mimetype: img.GetMimetype(), Data: data}, true
+	case m.GetDocumentMessage() != nil:
+		doc := m.GetDocumentMessage()
+		data, err := w.client.Download(ctx, doc)
+		if err != nil {
+			log.Printf("WA agent %d: gagal download dokumen: %v", w.agentID, err)
+			return IncomingMessage{}, false
+		}
+		return IncomingMessage{Text: doc.GetCaption(), MediaType: "document", Mimetype: doc.GetMimetype(), FileName: doc.GetFileName(), Data: data}, true
+	case m.GetVideoMessage() != nil:
+		vid := m.GetVideoMessage()
+		data, err := w.client.Download(ctx, vid)
+		if err != nil {
+			log.Printf("WA agent %d: gagal download video: %v", w.agentID, err)
+			return IncomingMessage{}, false
+		}
+		return IncomingMessage{Text: vid.GetCaption(), MediaType: "video", Mimetype: vid.GetMimetype(), Data: data}, true
+	case m.GetAudioMessage() != nil:
+		aud := m.GetAudioMessage()
+		data, err := w.client.Download(ctx, aud)
+		if err != nil {
+			log.Printf("WA agent %d: gagal download audio: %v", w.agentID, err)
+			return IncomingMessage{}, false
+		}
+		return IncomingMessage{MediaType: "audio", Mimetype: aud.GetMimetype(), Data: data}, true
+	case m.GetStickerMessage() != nil:
+		st := m.GetStickerMessage()
+		data, err := w.client.Download(ctx, st)
+		if err != nil {
+			return IncomingMessage{}, false
+		}
+		return IncomingMessage{MediaType: "sticker", Mimetype: st.GetMimetype(), Data: data}, true
+	}
+	return IncomingMessage{}, false // tipe pesan lain diabaikan
+}
+
+// SendImage mengunggah & mengirim gambar ke nomor.
+func (w *waInstance) SendImage(toNumber, caption, mimetype string, data []byte) error {
+	w.mu.Lock()
+	client := w.client
+	w.mu.Unlock()
+	if client == nil || !client.IsConnected() {
+		return fmt.Errorf("client WA tidak terhubung")
+	}
+	ctx := context.Background()
+	up, err := client.Upload(ctx, data, whatsmeow.MediaImage)
+	if err != nil {
+		return fmt.Errorf("gagal upload gambar: %w", err)
+	}
+	_, err = client.SendMessage(ctx, types.NewJID(toNumber, types.DefaultUserServer), &waProto.Message{
+		ImageMessage: &waProto.ImageMessage{
+			Caption:       proto.String(caption),
+			Mimetype:      proto.String(mimetype),
+			URL:           proto.String(up.URL),
+			DirectPath:    proto.String(up.DirectPath),
+			MediaKey:      up.MediaKey,
+			FileEncSHA256: up.FileEncSHA256,
+			FileSHA256:    up.FileSHA256,
+			FileLength:    proto.Uint64(up.FileLength),
+		},
+	})
+	return err
+}
+
+// SendDocument mengunggah & mengirim file/dokumen ke nomor.
+func (w *waInstance) SendDocument(toNumber, fileName, mimetype string, data []byte) error {
+	w.mu.Lock()
+	client := w.client
+	w.mu.Unlock()
+	if client == nil || !client.IsConnected() {
+		return fmt.Errorf("client WA tidak terhubung")
+	}
+	ctx := context.Background()
+	up, err := client.Upload(ctx, data, whatsmeow.MediaDocument)
+	if err != nil {
+		return fmt.Errorf("gagal upload dokumen: %w", err)
+	}
+	_, err = client.SendMessage(ctx, types.NewJID(toNumber, types.DefaultUserServer), &waProto.Message{
+		DocumentMessage: &waProto.DocumentMessage{
+			FileName:      proto.String(fileName),
+			Title:         proto.String(fileName),
+			Mimetype:      proto.String(mimetype),
+			URL:           proto.String(up.URL),
+			DirectPath:    proto.String(up.DirectPath),
+			MediaKey:      up.MediaKey,
+			FileEncSHA256: up.FileEncSHA256,
+			FileSHA256:    up.FileSHA256,
+			FileLength:    proto.Uint64(up.FileLength),
+		},
+	})
+	return err
 }
 
 // Suspend memutus socket WA tanpa menghapus sesi (device tetap tersimpan di store).

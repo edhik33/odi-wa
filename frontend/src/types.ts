@@ -74,6 +74,9 @@ export interface ChatMsg {
   message: string;
   reply: string;
   from_human: boolean;
+  media_type: string; // "", image, document, audio, video, sticker
+  file_name: string;
+  mimetype: string;
   created_at: string;
 }
 

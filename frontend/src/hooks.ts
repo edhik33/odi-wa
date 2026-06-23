@@ -134,6 +134,23 @@ export function useSendMessage(agentId: number) {
   });
 }
 
+export function useSendMedia(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ to, file, caption }: { to: string; file: File; caption: string }) => {
+      const fd = new FormData();
+      fd.append('to', to);
+      fd.append('caption', caption);
+      fd.append('file', file);
+      return (await api.post(`/agents/${agentId}/send-media`, fd)).data;
+    },
+    onSuccess: (_d, vars) => {
+      qc.invalidateQueries({ queryKey: ['conversation', agentId, vars.to] });
+      qc.invalidateQueries({ queryKey: ['contacts', agentId] });
+    },
+  });
+}
+
 export function useResumeBot(agentId: number) {
   const qc = useQueryClient();
   return useMutation({

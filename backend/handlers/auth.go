@@ -82,6 +82,23 @@ func isSuperAdmin(c *gin.Context) bool {
 	return b
 }
 
+// tenantFromToken memvalidasi JWT (string) & mengembalikan tenant_id.
+// Dipakai endpoint media karena <img>/<a> tidak bisa mengirim header Authorization.
+func tenantFromToken(tokenStr string) (uint, bool) {
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) { return jwtSecret, nil })
+	if err != nil || !token.Valid {
+		return 0, false
+	}
+	claims, ok := token.Claims.(jwt.MapClaims)
+	if !ok {
+		return 0, false
+	}
+	if tid, ok := claims["tenant_id"].(float64); ok && tid > 0 {
+		return uint(tid), true
+	}
+	return 0, false
+}
+
 // issueToken membuat JWT berisi identitas user (24 jam).
 func issueToken(u models.User) string {
 	claims := jwt.MapClaims{

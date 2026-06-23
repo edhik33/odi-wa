@@ -44,6 +44,11 @@ type ChatHistory struct {
 	Message   string    `json:"message"`
 	Reply     string    `json:"reply"`
 	FromHuman bool      `gorm:"not null;default:false" json:"from_human"` // true = balasan dikirim manusia dari inbox
+	// Lampiran media (kosong = pesan teks biasa).
+	MediaType string    `gorm:"size:16" json:"media_type"` // image, document, audio, video, sticker
+	MediaPath string    `json:"-"`                         // path file di server (diakses lewat endpoint media)
+	FileName  string    `json:"file_name"`
+	Mimetype  string    `json:"mimetype"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

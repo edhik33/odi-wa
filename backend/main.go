@@ -37,6 +37,7 @@ func main() {
 		api.POST("/register", handlers.Register)
 		api.GET("/plans", handlers.PublicPlans)
 		api.POST("/billing/tripay/callback", handlers.TripayCallback) // webhook Tripay (signature diverifikasi)
+		api.GET("/agents/:id/media/:cid", handlers.ServeMedia)        // file media (auth via ?token=)
 		api.GET("/me", handlers.AuthMiddleware(), handlers.Me)
 
 		// Panel operator platform (super admin).
@@ -100,6 +101,7 @@ func main() {
 			auth.GET("/agents/:id/contacts", handlers.InboxContacts)
 			auth.GET("/agents/:id/conversation", handlers.InboxConversation)
 			auth.POST("/agents/:id/send", handlers.InboxSend)
+			auth.POST("/agents/:id/send-media", handlers.InboxSendMedia)
 		}
 	}
 

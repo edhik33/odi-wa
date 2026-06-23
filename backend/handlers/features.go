@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"io"
+	"strconv"
 	"strings"
 	"time"
 
@@ -172,4 +174,93 @@ func InboxSend(c *gin.Context) {
 		database.DB.Create(&models.Handoff{AgentID: id, Sender: req.To, LastMsg: req.Message})
 	}
 	c.JSON(200, gin.H{"ok": true})
+}
+
+// InboxSendMedia mengirim gambar/file dari dashboard ke kontak (ambil alih dari bot).
+func InboxSendMedia(c *gin.Context) {
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	to := c.PostForm("to")
+	caption := c.PostForm("caption")
+	if to == "" {
+		c.JSON(400, gin.H{"error": "Nomor tujuan wajib"})
+		return
+	}
+	fh, err := c.FormFile("file")
+	if err != nil {
+		c.JSON(400, gin.H{"error": "File wajib diunggah"})
+		return
+	}
+	f, err := fh.Open()
+	if err != nil {
+		c.JSON(400, gin.H{"error": "Gagal membaca file"})
+		return
+	}
+	defer f.Close()
+	data, _ := io.ReadAll(f)
+
+	mimetype := fh.Header.Get("Content-Type")
+	if mimetype == "" {
+		mimetype = "application/octet-stream"
+	}
+	isImage := strings.HasPrefix(mimetype, "image/")
+
+	var sendErr error
+	if isImage {
+		sendErr = services.WA(id).SendImage(to, caption, mimetype, data)
+	} else {
+		sendErr = services.WA(id).SendDocument(to, fh.Filename, mimetype, data)
+	}
+	if sendErr != nil {
+		c.JSON(502, gin.H{"error": sendErr.Error()})
+		return
+	}
+
+	mediaType := "document"
+	if isImage {
+		mediaType = "image"
+	}
+	reply := caption
+	if reply == "" {
+		reply = mediaPlaceholder(mediaType, fh.Filename)
+	}
+	database.DB.Create(&models.ChatHistory{
+		AgentID: id, Sender: to, Reply: reply, FromHuman: true,
+		MediaType: mediaType, MediaPath: storeMedia(id, data, mimetype, fh.Filename),
+		FileName: fh.Filename, Mimetype: mimetype,
+	})
+
+	var cnt int64
+	database.DB.Model(&models.Handoff{}).Where("agent_id = ? AND sender = ?", id, to).Count(&cnt)
+	if cnt == 0 {
+		database.DB.Create(&models.Handoff{AgentID: id, Sender: to, LastMsg: reply})
+	}
+	c.JSON(200, gin.H{"ok": true})
+}
+
+// ServeMedia menyajikan file media sebuah pesan. Auth lewat ?token= (header tak bisa di <img>/<a>).
+func ServeMedia(c *gin.Context) {
+	tid, ok := tenantFromToken(c.Query("token"))
+	if !ok {
+		c.AbortWithStatus(401)
+		return
+	}
+	agentID, err := strconv.Atoi(c.Param("id"))
+	if err != nil {
+		c.AbortWithStatus(400)
+		return
+	}
+	var agent models.Agent
+	if database.DB.Select("id").Where("id = ? AND tenant_id = ?", agentID, tid).First(&agent).Error != nil {
+		c.AbortWithStatus(404)
+		return
+	}
+	var ch models.ChatHistory
+	if database.DB.Where("id = ? AND agent_id = ?", c.Param("cid"), agentID).First(&ch).Error != nil || ch.MediaPath == "" {
+		c.AbortWithStatus(404)
+		return
+	}
+	c.File(ch.MediaPath)
 }
