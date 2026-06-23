@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box, Typography, Card, CardContent, TextField, Button, Stack, Alert, Chip,
   Table, TableBody, TableCell, TableHead, TableRow, LinearProgress, CircularProgress, Divider,
@@ -30,9 +30,11 @@ const RCP_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   sent: 'success', failed: 'error', skipped: 'default', pending: 'warning',
 };
 
-export default function BroadcastPanel({ agentId }: { agentId: number }) {
+export default function BroadcastPanel({ agentId, seed }: { agentId: number; seed?: { value: string; n: number } | null }) {
   const [message, setMessage] = useState('');
   const [recipientsText, setRecipientsText] = useState('');
+  // Prefill penerima saat datang dari menu Kontak ("Broadcast ke tag ini").
+  useEffect(() => { if (seed?.value) setRecipientsText(seed.value); }, [seed?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   const [minDelay, setMinDelay] = useState(10);
   const [maxDelay, setMaxDelay] = useState(30);
   const [file, setFile] = useState<File | null>(null);

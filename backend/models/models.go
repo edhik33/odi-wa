@@ -54,12 +54,15 @@ type ChatHistory struct {
 }
 
 // Contact = nama profil WA kontak, ditangkap dari PushName tiap pesan masuk.
-// Dipakai menampilkan nama di inbox & sumber broadcast (pernah chat, label, grup).
+// Dipakai menampilkan nama di inbox & sumber broadcast (pernah chat, label, grup),
+// dan jadi basis menu Kontak (CRM ringan): Notes & Tags diisi manual oleh user.
 type Contact struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AgentID   uint      `gorm:"uniqueIndex:idx_contact_agent_number;not null" json:"agent_id"`
 	Number    string    `gorm:"uniqueIndex:idx_contact_agent_number;size:32;not null" json:"number"`
 	Name      string    `json:"name"`
+	Notes     string    `gorm:"type:text" json:"notes"`
+	Tags      string    `gorm:"type:text" json:"tags"` // tag manual, dipisah koma
 	UpdatedAt time.Time `json:"updated_at"`
 }
 

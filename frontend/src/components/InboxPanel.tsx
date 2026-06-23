@@ -34,7 +34,7 @@ function Bubble({ side, bg, color, tag, children }: {
   );
 }
 
-export default function InboxPanel({ agentId }: { agentId: number }) {
+export default function InboxPanel({ agentId, seed }: { agentId: number; seed?: { value: string; n: number } | null }) {
   const { data: contacts, isLoading } = useContacts(agentId);
   const [sender, setSender] = useState('');
   const { data: convo } = useConversation(agentId, sender);
@@ -49,6 +49,9 @@ export default function InboxPanel({ agentId }: { agentId: number }) {
   useEffect(() => {
     if (!sender && contacts && contacts.length) setSender(contacts[0].sender);
   }, [contacts, sender]);
+
+  // Buka chat kontak tertentu saat datang dari menu Kontak.
+  useEffect(() => { if (seed?.value) setSender(seed.value); }, [seed?.n]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [convo]);
 
   const busy = sendMsg.isPending || sendMedia.isPending;

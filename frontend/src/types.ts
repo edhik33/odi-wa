@@ -141,6 +141,23 @@ export interface Template {
   sort_order: number;
 }
 
+export interface SavedContact {
+  id: number;
+  number: string;
+  name: string;
+  notes: string;
+  tags: string; // dipisah koma
+  last_at: string | null;
+}
+
+export interface SavedContactsResp {
+  data: SavedContact[];
+  total: number;
+  page: number;
+  limit: number;
+  all_tags: string[];
+}
+
 export interface WAGroup {
   jid: string;
   name: string;

@@ -16,6 +16,7 @@ import CampaignIcon from '@mui/icons-material/CampaignOutlined';
 import CalendarIcon from '@mui/icons-material/CalendarMonthOutlined';
 import RuleIcon from '@mui/icons-material/RuleOutlined';
 import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
+import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import { QRCodeSVG } from 'qrcode.react';
 import logo from '../assets/logo-chatloop-1.png';
@@ -31,6 +32,7 @@ import BroadcastPanel from '../components/BroadcastPanel';
 import CalendarPanel from '../components/CalendarPanel';
 import AutoReplyPanel from '../components/AutoReplyPanel';
 import TemplatePanel from '../components/TemplatePanel';
+import ContactsPanel from '../components/ContactsPanel';
 import PageHeader from '../components/PageHeader';
 import {
   useAgents, useAgentStatuses, useAgentStatus, useAgentKnowledge,
@@ -47,20 +49,26 @@ const TONES = [
 ];
 
 const NAV_ITEMS = [
-  { label: 'Dashboard', icon: <DashboardIcon fontSize="small" /> },
-  { label: 'Inbox', icon: <InboxIcon fontSize="small" /> },
-  { label: 'Coba Chat', icon: <ChatIcon fontSize="small" /> },
-  { label: 'Knowledge', icon: <KnowledgeIcon fontSize="small" /> },
-  { label: 'Broadcast', icon: <CampaignIcon fontSize="small" /> },
-  { label: 'Kalender', icon: <CalendarIcon fontSize="small" /> },
-  { label: 'Auto-Reply', icon: <RuleIcon fontSize="small" /> },
-  { label: 'Template', icon: <TemplateIcon fontSize="small" /> },
-  { label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
-  { label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
+  { id: 'dashboard', label: 'Dashboard', icon: <DashboardIcon fontSize="small" /> },
+  { id: 'inbox', label: 'Inbox', icon: <InboxIcon fontSize="small" /> },
+  { id: 'kontak', label: 'Kontak', icon: <ContactsIcon fontSize="small" /> },
+  { id: 'coba-chat', label: 'Coba Chat', icon: <ChatIcon fontSize="small" /> },
+  { id: 'knowledge', label: 'Knowledge', icon: <KnowledgeIcon fontSize="small" /> },
+  { id: 'broadcast', label: 'Broadcast', icon: <CampaignIcon fontSize="small" /> },
+  { id: 'kalender', label: 'Kalender', icon: <CalendarIcon fontSize="small" /> },
+  { id: 'auto-reply', label: 'Auto-Reply', icon: <RuleIcon fontSize="small" /> },
+  { id: 'template', label: 'Template', icon: <TemplateIcon fontSize="small" /> },
+  { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
+  { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
 ];
 
 export default function Dashboard() {
-  const [tab, setTab] = useState(() => Number(localStorage.getItem('wai_tab')) || 0);
+  const [tab, setTab] = useState(() => {
+    const saved = localStorage.getItem('wai_tab');
+    return saved && NAV_ITEMS.some(n => n.id === saved) ? saved : 'dashboard';
+  });
+  // seed = data yang dioper antar-tab (mis. dari Kontak ke Broadcast/Inbox). n = pemicu agar efek jalan ulang.
+  const [seed, setSeed] = useState<{ kind: 'broadcast' | 'inbox'; value: string; n: number } | null>(null);
   const [agentId, setAgentId] = useState<number>(() => Number(localStorage.getItem('wai_agent')) || 0);
   const [agentName, setAgentName] = useState('');
   const [prompt, setPrompt] = useState('');
@@ -132,7 +140,7 @@ export default function Dashboard() {
 
   // ---- Simpan tab & CS ke localStorage ----
 
-  useEffect(() => { localStorage.setItem('wai_tab', String(tab)); }, [tab]);
+  useEffect(() => { localStorage.setItem('wai_tab', tab); }, [tab]);
   useEffect(() => { if (agentId) localStorage.setItem('wai_agent', String(agentId)); }, [agentId]);
 
   // ---- Handlers ----
@@ -173,7 +181,7 @@ export default function Dashboard() {
     if (!name) return;
     const r = await createAgentMut.mutateAsync({ name, tone: 'ramah' });
     setAgentId(r.data.id);
-    setTab(0);
+    setTab('dashboard');
   };
 
   const deleteAgent = async () => {
@@ -287,18 +295,18 @@ export default function Dashboard() {
             scrollbarWidth: 'thin',
           }}
         >
-          {NAV_ITEMS.map((item, i) => (
+          {NAV_ITEMS.map((item) => (
             <Button
-              key={item.label}
-              variant={tab === i ? 'contained' : 'text'}
+              key={item.id}
+              variant={tab === item.id ? 'contained' : 'text'}
               startIcon={item.icon}
-              onClick={() => setTab(i)}
+              onClick={() => setTab(item.id)}
               sx={{
                 justifyContent: { xs: 'center', md: 'flex-start' },
                 minWidth: { xs: 'max-content', md: '100%' },
                 height: 32,
                 px: 1.1,
-                color: tab === i ? 'primary.contrastText' : 'text.primary',
+                color: tab === item.id ? 'primary.contrastText' : 'text.primary',
                 '& .MuiButton-startIcon': { mr: 0.75 },
               }}
             >
@@ -313,7 +321,7 @@ export default function Dashboard() {
       </Paper>
 
       <Box component="main" sx={{ flex: 1, p: { xs: 1.25, md: 2 }, overflowY: 'auto', height: { md: '100vh' }, minHeight: 0, width: '100%', minWidth: 0 }}>
-        {tab === 0 && (
+        {tab === 'dashboard' && (
           <Box>
             <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
 
@@ -398,7 +406,7 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 3 && (
+        {tab === 'knowledge' && (
           <Box>
             <PageHeader title={<>Knowledge Base {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
 
@@ -490,7 +498,7 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 8 && (
+        {tab === 'settings' && (
           <Box>
             <PageHeader title={<><SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />Pengaturan {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
             <Card sx={{ mb: 1.5 }}>
@@ -582,13 +590,18 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 9 && <BillingPanel />}
-        {tab === 1 && <InboxPanel agentId={agentId} />}
-        {tab === 2 && <TestChatPanel agentId={agentId} />}
-        {tab === 4 && <BroadcastPanel agentId={agentId} />}
-        {tab === 5 && <CalendarPanel agentId={agentId} />}
-        {tab === 6 && <AutoReplyPanel agentId={agentId} />}
-        {tab === 7 && <TemplatePanel agentId={agentId} />}
+        {tab === 'langganan' && <BillingPanel />}
+        {tab === 'inbox' && <InboxPanel agentId={agentId} seed={seed?.kind === 'inbox' ? seed : null} />}
+        {tab === 'coba-chat' && <TestChatPanel agentId={agentId} />}
+        {tab === 'broadcast' && <BroadcastPanel agentId={agentId} seed={seed?.kind === 'broadcast' ? seed : null} />}
+        {tab === 'kalender' && <CalendarPanel agentId={agentId} />}
+        {tab === 'auto-reply' && <AutoReplyPanel agentId={agentId} />}
+        {tab === 'template' && <TemplatePanel agentId={agentId} />}
+        {tab === 'kontak' && (
+          <ContactsPanel agentId={agentId}
+            onBroadcast={(recipients) => { setSeed({ kind: 'broadcast', value: recipients, n: Date.now() }); setTab('broadcast'); }}
+            onOpenChat={(number) => { setSeed({ kind: 'inbox', value: number, n: Date.now() }); setTab('inbox'); }} />
+        )}
       </Box>
     </Box>
   );

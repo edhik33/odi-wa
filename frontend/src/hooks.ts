@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, Agent, KnowledgeItem, Handoff } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, SavedContact, SavedContactsResp, Agent, KnowledgeItem, Handoff } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -265,6 +265,44 @@ export function useDeleteTemplate(agentId: number) {
   return useMutation({
     mutationFn: async (tid: number) => (await api.delete(`/agents/${agentId}/templates/${tid}`)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['templates', agentId] }),
+  });
+}
+
+// ---- Kontak (CRM ringan) ----
+
+export function useCrmContacts(agentId: number, q: string, tag: string, page: number) {
+  return useQuery<SavedContactsResp>({
+    queryKey: ['crm-contacts', agentId, q, tag, page],
+    queryFn: async () => (await api.get(`/agents/${agentId}/crm/contacts`, { params: { q, tag, page } })).data,
+    enabled: !!agentId,
+  });
+}
+
+export function useSaveCrmContact(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ct: Partial<SavedContact>) =>
+      ct.id
+        ? (await api.put(`/agents/${agentId}/crm/contacts/${ct.id}`, ct)).data
+        : (await api.post(`/agents/${agentId}/crm/contacts`, ct)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-contacts', agentId] }),
+  });
+}
+
+export function useDeleteCrmContact(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (cid: number) => (await api.delete(`/agents/${agentId}/crm/contacts/${cid}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['crm-contacts', agentId] }),
+  });
+}
+
+// useCrmContactsExport mengambil SEMUA kontak hasil filter (tanpa paginasi),
+// dipakai untuk menjadikan satu tag jadi target broadcast.
+export function useCrmContactsExport(agentId: number) {
+  return useMutation({
+    mutationFn: async ({ q, tag }: { q: string; tag: string }) =>
+      (await api.get(`/agents/${agentId}/crm/contacts`, { params: { q, tag, all: 1 } })).data.data as SavedContact[],
   });
 }
 
