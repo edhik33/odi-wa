@@ -415,7 +415,7 @@ export function useAgentStatuses() {
 }
 
 export function useAgentStatus(agentId: number) {
-  return useQuery<{ status: string; qr: string; number: string; name: string }>({
+  return useQuery<{ status: string; qr: string; qr_ttl: number; number: string; name: string }>({
     queryKey: ['agent', agentId, 'status'],
     queryFn: async () => (await api.get(`/agents/${agentId}/wa/status`)).data,
     enabled: !!agentId,

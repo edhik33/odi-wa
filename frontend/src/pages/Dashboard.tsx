@@ -2,7 +2,7 @@ import { useState, useEffect, Fragment } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, Chip, CircularProgress, TextField,
   Stack, IconButton, Paper, Grid, Select, MenuItem, FormControl, InputLabel, Divider,
-  Switch, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions, LinearProgress,
+  Switch, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
@@ -116,6 +116,7 @@ export default function Dashboard() {
 
   const status = statusData?.status || '';
   const qr = statusData?.qr || '';
+  const qrTtl = statusData?.qr_ttl || 0;
   const waNumber = statusData?.number || '';
   const waName = statusData?.name || '';
 
@@ -132,8 +133,7 @@ export default function Dashboard() {
 
   // ---- QR modal (sambung WhatsApp) ----
   const [qrModalOpen, setQrModalOpen] = useState(false);
-  const QR_TTL = 20; // perkiraan masa berlaku satu QR (detik); WhatsApp memutar otomatis
-  const [qrSeconds, setQrSeconds] = useState(QR_TTL);
+  const [qrSeconds, setQrSeconds] = useState(0); // disinkron dari qr_ttl server (durasi asli whatsmeow)
   const [riskAck, setRiskAck] = useState(true); // disclaimer risiko banned, default tercentang
   const [qrError, setQrError] = useState('');
 
@@ -173,7 +173,7 @@ export default function Dashboard() {
     }
   }, [qrModalOpen, status]);
 
-  useEffect(() => { setQrSeconds(QR_TTL); }, [qr]); // reset saat QR baru muncul (WhatsApp memutar otomatis)
+  useEffect(() => { if (qrTtl > 0) setQrSeconds(qrTtl); }, [qrTtl]); // sinkron dari server tiap polling (durasi asli kode)
 
   useEffect(() => {
     if (!qrModalOpen || !qr) return;
@@ -694,10 +694,8 @@ export default function Dashboard() {
                     </Typography>
                   </Box>
                   <Box sx={{ mt: 1.5 }}>
-                    <LinearProgress variant="determinate" value={(qrSeconds / QR_TTL) * 100}
-                      color={qrSeconds > 5 ? 'primary' : 'warning'} sx={{ height: 6, borderRadius: 3 }} />
-                    <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
-                      {qrSeconds > 0 ? `Kode diperbarui otomatis dalam ${qrSeconds} detik` : 'Memuat kode baru…'}
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                      {qrSeconds > 0 ? `QR aktif. Kode diperbarui otomatis (${qrSeconds} detik). Scan kapan saja.` : 'Memuat kode baru…'}
                     </Typography>
                   </Box>
                 </>

@@ -42,8 +42,9 @@ type waInstance struct {
 	agentID        uint
 	client         *whatsmeow.Client
 	qrCode         string
-	status         string // "disconnected", "qr", "connected"
-	contactsSynced bool   // true setelah backfill nama kontak dari buku alamat (sekali per proses)
+	qrExpiry       time.Time // kapan kode QR saat ini akan diputar whatsmeow (untuk countdown akurat)
+	status         string    // "disconnected", "qr", "connecting", "connected", "expired"
+	contactsSynced bool      // true setelah backfill nama kontak dari buku alamat (sekali per proses)
 }
 
 var (
@@ -207,6 +208,7 @@ func (w *waInstance) watchQR(qrChan <-chan whatsmeow.QRChannelItem) {
 		if evt.Event == "code" {
 			w.mu.Lock()
 			w.qrCode = evt.Code
+			w.qrExpiry = time.Now().Add(evt.Timeout) // durasi asli kode ini (kode pertama ~60s, berikutnya ~20s)
 			w.status = "qr"
 			w.mu.Unlock()
 			continue
@@ -304,6 +306,19 @@ func (w *waInstance) GetQR() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
 	return w.qrCode
+}
+
+// GetQRTTL = sisa detik sebelum kode QR saat ini diputar whatsmeow (0 bila bukan status qr).
+func (w *waInstance) GetQRTTL() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	if w.status != "qr" || w.qrExpiry.IsZero() {
+		return 0
+	}
+	if s := int(time.Until(w.qrExpiry).Seconds()); s > 0 {
+		return s
+	}
+	return 0
 }
 
 func (w *waInstance) GetStatus() string {

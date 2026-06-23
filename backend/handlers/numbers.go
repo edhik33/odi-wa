@@ -15,7 +15,7 @@ func GetNumberStatus(c *gin.Context) {
 	}
 	m := services.WA(id)
 	number, name := m.GetInfo()
-	c.JSON(200, gin.H{"status": m.GetStatus(), "qr": m.GetQR(), "number": number, "name": name})
+	c.JSON(200, gin.H{"status": m.GetStatus(), "qr": m.GetQR(), "qr_ttl": m.GetQRTTL(), "number": number, "name": name})
 }
 
 func ConnectNumber(c *gin.Context) {
