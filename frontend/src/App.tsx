@@ -16,6 +16,17 @@ function PrivateRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// GuestRoute: halaman khusus tamu (login/daftar). Kalau sudah login, lempar ke dashboard.
+function GuestRoute({ children }: { children: React.ReactNode }) {
+  const token = localStorage.getItem('token');
+  if (token) {
+    let isAdmin = false;
+    try { isAdmin = !!JSON.parse(localStorage.getItem('user') || '{}')?.is_super_admin; } catch { /* token tanpa user tersimpan */ }
+    return <Navigate to={isAdmin ? '/admin' : '/app'} replace />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
@@ -23,8 +34,8 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<Landing />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/daftar" element={<Register />} />
+          <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
+          <Route path="/daftar" element={<GuestRoute><Register /></GuestRoute>} />
 
           {/* Panel operator platform (super admin) */}
           <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>
