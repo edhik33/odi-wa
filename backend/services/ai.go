@@ -14,8 +14,8 @@ import (
 // simThreshold = ambang minimal kemiripan kosinus agar sebuah knowledge dianggap relevan.
 // topK = jumlah maksimal knowledge yang disisipkan ke prompt.
 const (
-	simThreshold = 0.35
-	topK         = 3
+	simThreshold = 0.55
+	topK         = 5
 )
 
 var AIClient *openai.Client
@@ -62,11 +62,19 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 	}
 	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userMsg})
 
+	// Dynamic temperature & token: presisi saat ada knowledge, natural saat ngobrol biasa.
+	temp := float32(0.7)
+	maxTok := 800
+	if len(relevant) > 0 {
+		temp = 0.4  // faktual & konsisten menjawab dari knowledge base
+		maxTok = 900 // ruang cukup untuk knowledge panjang (daftar harga, syarat, dsb.)
+	}
+
 	resp, err := AIClient.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model:       config.Env("OPENAI_MODEL", "deepseek-v4-pro"),
 		Messages:    messages,
-		MaxTokens:   512, // cukup besar agar jawaban ringkas tidak terpotong di tengah; panjang dijaga lewat prompt
-		Temperature: 0.7, // lebih luwes/natural seperti ngobrol
+		MaxTokens:   maxTok,
+		Temperature: temp,
 	})
 	if err != nil {
 		return "", false, err
@@ -86,6 +94,15 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 		// Model sesekali balas kosong; jangan kirim pesan kosong ke WhatsApp.
 		return "Maaf kak, boleh diulang pertanyaannya?", false, nil
 	}
+
+	// Verifikasi jawaban terhadap knowledge source (keyword overlap) — deteksi dini halusinasi.
+	if len(relevant) > 0 {
+		overlap := answerKnowledgeOverlap(reply, relevant)
+		if overlap < 0.15 {
+			log.Printf("WARN: jawaban AI overlap rendah (%.3f) thd knowledge — kemungkinan halusinasi. Pesan: %q", overlap, userMsg)
+		}
+	}
+
 	return reply, false, nil
 }
 
@@ -177,4 +194,29 @@ func keywordSearch(msg string, items []KBItem) []models.Knowledge {
 		relevant = relevant[:topK]
 	}
 	return relevant
+}
+
+// answerKnowledgeOverlap menghitung seberapa banyak kata dari knowledge muncul di jawaban AI.
+// Nilai 0–1: 1 = semua kata kunci knowledge muncul di jawaban, 0 = tidak ada yang cocok.
+// Dipakai untuk deteksi dini halusinasi (jawaban melenceng dari knowledge).
+func answerKnowledgeOverlap(reply string, relevant []models.Knowledge) float64 {
+	replyLower := strings.ToLower(reply)
+	var total, match int
+	for _, k := range relevant {
+		// Kata kunci dari question + answer (kata >3 huruf saja, hindari noise).
+		words := strings.Fields(strings.ToLower(k.Question + " " + k.Answer))
+		for _, w := range words {
+			if len(w) < 4 {
+				continue
+			}
+			total++
+			if strings.Contains(replyLower, w) {
+				match++
+			}
+		}
+	}
+	if total == 0 {
+		return 0
+	}
+	return float64(match) / float64(total)
 }

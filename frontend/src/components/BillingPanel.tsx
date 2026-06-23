@@ -8,10 +8,19 @@ import CheckIcon from '@mui/icons-material/Check';
 import { usePublicPlans, useUsage, useBillingChannels, useInvoices, useCheckout } from '../hooks';
 import type { Plan } from '../types';
 import { rupiah } from '../types';
+import PageHeader from './PageHeader';
 
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   active: 'success', trial: 'warning', suspended: 'error', expired: 'default', paid: 'success', pending: 'warning',
 };
+
+function errorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { error?: string } } }).response;
+    return response?.data?.error || fallback;
+  }
+  return fallback;
+}
 
 export default function BillingPanel() {
   const { data: plans } = usePublicPlans();
@@ -30,17 +39,17 @@ export default function BillingPanel() {
     try {
       const res = await checkout.mutateAsync({ plan_id: selected.id, method });
       window.location.href = res.checkout_url; // arahkan ke halaman bayar Tripay
-    } catch (e: any) {
-      setError(e.response?.data?.error || 'Gagal membuat pembayaran');
+    } catch (e) {
+      setError(errorMessage(e, 'Gagal membuat pembayaran'));
     }
   };
 
   return (
     <Box>
-      <Typography variant="h5" sx={{ fontWeight: 800, mb: 3 }}>Langganan</Typography>
+      <PageHeader title="Langganan" />
 
       {usage && (
-        <Alert severity={usage.tenant.status === 'active' ? 'success' : 'info'} sx={{ mb: 3 }}>
+        <Alert severity={usage.tenant.status === 'active' ? 'success' : 'info'} sx={{ mb: 2 }}>
           Paket saat ini: <b>{usage.tenant.plan?.name || 'Trial'}</b> · status <b>{usage.tenant.status}</b>
           {usage.tenant.status === 'trial' && usage.tenant.trial_ends_at &&
             ` · trial berakhir ${new Date(usage.tenant.trial_ends_at).toLocaleDateString('id-ID')}`}
@@ -48,25 +57,25 @@ export default function BillingPanel() {
       )}
 
       {channelsError && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
+        <Alert severity="warning" sx={{ mb: 2 }}>
           Pembayaran online belum aktif. Hubungi admin untuk upgrade manual sementara.
         </Alert>
       )}
 
-      <Grid container spacing={2} sx={{ mb: 4 }}>
+      <Grid container spacing={1.5} sx={{ mb: 2 }}>
         {plans?.map(p => {
           const current = usage?.tenant.plan_id === p.id;
           return (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={p.id}>
               <Card sx={{ height: '100%', border: p.is_popular ? '2px solid #25D366' : undefined }}>
                 <CardContent>
-                  <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-                    <Typography variant="h6" sx={{ fontWeight: 800 }}>{p.name}</Typography>
+                  <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.75 }}>
+                    <Typography variant="h6">{p.name}</Typography>
                     {p.is_popular && <Chip label="Populer" size="small" color="primary" />}
                   </Stack>
-                  <Typography variant="h5" sx={{ fontWeight: 800 }}>{rupiah(p.price)}</Typography>
+                  <Typography variant="h6">{rupiah(p.price)}</Typography>
                   <Typography variant="caption" color="text.secondary">/{p.billing_period === 'yearly' ? 'tahun' : 'bulan'}</Typography>
-                  <Stack spacing={0.5} sx={{ my: 2 }}>
+                  <Stack spacing={0.5} sx={{ my: 1.5 }}>
                     <Typography variant="body2"><CheckIcon sx={{ fontSize: 16, verticalAlign: 'middle', color: '#25D366' }} /> {p.max_numbers} nomor WhatsApp</Typography>
                     <Typography variant="body2"><CheckIcon sx={{ fontSize: 16, verticalAlign: 'middle', color: '#25D366' }} /> {p.max_ai_replies_monthly ? `${p.max_ai_replies_monthly.toLocaleString('id-ID')} balasan AI/bln` : 'Balasan AI tanpa batas'}</Typography>
                   </Stack>

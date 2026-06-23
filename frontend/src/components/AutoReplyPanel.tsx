@@ -9,6 +9,7 @@ import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAutoReplies, useSaveAutoReply, useDeleteAutoReply } from '../hooks';
 import type { AutoReply } from '../types';
+import { swalConfirm } from '../services/swal';
 import PageHeader from './PageHeader';
 
 const MATCH_LABEL: Record<string, string> = {
@@ -22,16 +23,24 @@ export default function AutoReplyPanel({ agentId }: { agentId: number }) {
   const del = useDeleteAutoReply(agentId);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<AutoReply>>(EMPTY);
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const openNew = () => { setForm(EMPTY); setOpen(true); };
-  const openEdit = (r: AutoReply) => { setForm(r); setOpen(true); };
+  const openNew = () => { setForm(EMPTY); setErrors({}); setOpen(true); };
+  const openEdit = (r: AutoReply) => { setForm(r); setErrors({}); setOpen(true); };
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.keywords?.trim()) e.keywords = 'Wajib diisi';
+    if (!form.reply?.trim()) e.reply = 'Wajib diisi';
+    setErrors(e);
+    return Object.keys(e).length === 0;
+  };
   const submit = async () => {
-    if (!form.keywords?.trim() || !form.reply?.trim()) return;
+    if (!validate()) return;
     await save.mutateAsync(form);
     setOpen(false);
   };
   const toggle = (r: AutoReply) => save.mutate({ id: r.id, enabled: !r.enabled });
-  const remove = (r: AutoReply) => { if (window.confirm('Hapus aturan ini?')) del.mutate(r.id); };
+  const remove = async (r: AutoReply) => { if (await swalConfirm('Hapus aturan ini?')) del.mutate(r.id); };
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
@@ -44,7 +53,7 @@ export default function AutoReplyPanel({ agentId }: { agentId: number }) {
       {(!rules || rules.length === 0) ? (
         <Alert severity="info">Belum ada aturan. Contoh: kata kunci <code>harga, price</code> → balasan daftar harga. Klik "Tambah Aturan".</Alert>
       ) : (
-        <Stack spacing={1.5}>
+        <Stack spacing={1}>
           {rules.map(r => (
             <Card key={r.id} sx={{ opacity: r.enabled ? 1 : 0.6 }}>
               <CardContent>
@@ -75,8 +84,8 @@ export default function AutoReplyPanel({ agentId }: { agentId: number }) {
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField label="Kata kunci (pisah dengan koma)" value={form.keywords ?? ''}
-              onChange={e => setForm({ ...form, keywords: e.target.value })} size="small"
-              placeholder="harga, price, berapa" helperText="Cocok kalau salah satu kata kunci ditemukan." />
+              onChange={e => { setForm({ ...form, keywords: e.target.value }); if (errors.keywords) setErrors(p => ({ ...p, keywords: '' })); }} size="small"
+              placeholder="harga, price, berapa" error={!!errors.keywords} helperText={errors.keywords || 'Cocok kalau salah satu kata kunci ditemukan.'} />
             <FormControl size="small" fullWidth>
               <InputLabel>Tipe pencocokan</InputLabel>
               <Select label="Tipe pencocokan" value={form.match_type ?? 'contains'}
@@ -86,8 +95,8 @@ export default function AutoReplyPanel({ agentId }: { agentId: number }) {
                 <MenuItem value="prefix">Diawali kata</MenuItem>
               </Select>
             </FormControl>
-            <TextField label="Balasan" value={form.reply ?? ''} onChange={e => setForm({ ...form, reply: e.target.value })}
-              size="small" multiline rows={4} placeholder="Halo kak! Berikut daftar harga kami: ..." />
+            <TextField label="Balasan" value={form.reply ?? ''} onChange={e => { setForm({ ...form, reply: e.target.value }); if (errors.reply) setErrors(p => ({ ...p, reply: '' })); }}
+              size="small" multiline rows={4} placeholder="Halo kak! Berikut daftar harga kami: ..." error={!!errors.reply} helperText={errors.reply} />
           </Stack>
         </DialogContent>
         <DialogActions>

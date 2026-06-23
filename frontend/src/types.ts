@@ -84,6 +84,7 @@ export interface Contact {
   sender: string;
   last_at: string;
   needs_human: boolean;
+  name?: string;
 }
 
 export interface Analytics {
@@ -180,6 +181,33 @@ export function currentUser(): User | null {
   } catch {
     return null;
   }
+}
+
+export interface Agent {
+  id: number;
+  name?: string;
+  system_prompt?: string;
+  tone?: string;
+  ai_enabled?: boolean;
+  greeting_enabled?: boolean;
+  greeting_message?: string;
+  business_hours_enabled?: boolean;
+  business_start?: string;
+  business_end?: string;
+  away_message?: string;
+}
+
+export interface KnowledgeItem {
+  id: number;
+  question: string;
+  answer: string;
+  tags?: string;
+}
+
+export interface Handoff {
+  id: number;
+  sender: string;
+  last_msg: string;
 }
 
 export function rupiah(n: number): string {

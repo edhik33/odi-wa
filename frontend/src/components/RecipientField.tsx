@@ -10,8 +10,8 @@ import type { WAGroup, LabelInfo } from '../types';
 
 type Contact = { number: string; name: string };
 
-export default function RecipientField({ agentId, value, onChange }: {
-  agentId: number; value: string; onChange: (v: string) => void;
+export default function RecipientField({ agentId, value, onChange, error }: {
+  agentId: number; value: string; onChange: (v: string) => void; error?: string;
 }) {
   const chatContacts = useChatContacts(agentId);
   const waContacts = useWAContacts(agentId);
@@ -51,9 +51,9 @@ export default function RecipientField({ agentId, value, onChange }: {
 
   return (
     <Box>
-      <TextField fullWidth multiline rows={5} value={value} onChange={e => onChange(e.target.value)}
-        placeholder={'08123456789,Budi\n08987654321,Sinta'} sx={{ mb: 1 }} />
-      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 1, mb: 0.5 }}>
+      <TextField fullWidth multiline rows={4} value={value} onChange={e => onChange(e.target.value)}
+        placeholder={'08123456789,Budi\n08987654321,Sinta'} error={!!error} helperText={error} sx={{ mb: 1 }} />
+      <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap', gap: 0.75, mb: 0.5 }}>
         <Button size="small" disabled={chatContacts.isPending}
           startIcon={chatContacts.isPending ? <CircularProgress size={14} /> : <ForumIcon />}
           onClick={async () => merge(await chatContacts.mutateAsync(), 'pernah chat')}>

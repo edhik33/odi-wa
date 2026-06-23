@@ -1,7 +1,9 @@
 package handlers
 
 import (
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
@@ -13,6 +15,31 @@ import (
 )
 
 var jwtSecret = []byte(config.Env("JWT_SECRET", "wa-assistant-secret-change-me"))
+
+const (
+	loginWindow          = 10 * time.Minute
+	loginLockDuration    = 10 * time.Minute
+	loginMaxPairFailures = 5
+	loginMaxIPFailures   = 25
+	loginGenericError    = "Login belum berhasil"
+)
+
+var (
+	loginThrottleMu sync.Mutex
+	loginThrottle   = map[string]*loginThrottleEntry{}
+	dummyLoginHash  = []byte("$2a$10$QEUEZpKWWd3xV1qX7Q9BceA5.CgHCMOaOy3MpF8M/OIWYK8MKioJm")
+)
+
+type loginThrottleEntry struct {
+	failures    int
+	firstSeen   time.Time
+	lockedUntil time.Time
+}
+
+type loginThrottleKey struct {
+	key string
+	max int
+}
 
 func CORS() gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -35,7 +62,7 @@ func AuthMiddleware() gin.HandlerFunc {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Unauthorized"})
 			return
 		}
-		token, err := jwt.Parse(auth[7:], func(t *jwt.Token) (interface{}, error) { return jwtSecret, nil })
+		token, err := jwt.Parse(auth[7:], func(t *jwt.Token) (interface{}, error) { return jwtSecret, nil }, jwt.WithValidMethods([]string{"HS256"}))
 		if err != nil || !token.Valid {
 			c.AbortWithStatusJSON(401, gin.H{"error": "Invalid token"})
 			return
@@ -85,7 +112,7 @@ func isSuperAdmin(c *gin.Context) bool {
 // tenantFromToken memvalidasi JWT (string) & mengembalikan tenant_id.
 // Dipakai endpoint media karena <img>/<a> tidak bisa mengirim header Authorization.
 func tenantFromToken(tokenStr string) (uint, bool) {
-	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) { return jwtSecret, nil })
+	token, err := jwt.Parse(tokenStr, func(t *jwt.Token) (interface{}, error) { return jwtSecret, nil }, jwt.WithValidMethods([]string{"HS256"}))
 	if err != nil || !token.Valid {
 		return 0, false
 	}
@@ -114,6 +141,18 @@ func issueToken(u models.User) string {
 	return token
 }
 
+// issueMediaToken membuat JWT berumur pendek (30 menit) khusus akses media.
+// Dipakai di URL <img>/<a> agar token utama (24 jam) tidak ikut bocor ke log/Referer.
+func issueMediaToken(tenantID uint) string {
+	claims := jwt.MapClaims{
+		"tenant_id": tenantID,
+		"scope":     "media",
+		"exp":       time.Now().Add(30 * time.Minute).Unix(),
+	}
+	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(jwtSecret)
+	return token
+}
+
 func userResponse(u models.User) gin.H {
 	return gin.H{
 		"id":             u.ID,
@@ -126,24 +165,113 @@ func userResponse(u models.User) gin.H {
 	}
 }
 
+func loginThrottleKeys(ip, username string) []loginThrottleKey {
+	username = strings.ToLower(strings.TrimSpace(username))
+	keys := make([]loginThrottleKey, 0, 2)
+	if ip != "" {
+		keys = append(keys, loginThrottleKey{key: "ip:" + ip, max: loginMaxIPFailures})
+	}
+	if ip != "" && username != "" {
+		keys = append(keys, loginThrottleKey{key: "pair:" + ip + ":" + username, max: loginMaxPairFailures})
+	}
+	return keys
+}
+
+func checkLoginThrottle(ip, username string, now time.Time) time.Duration {
+	loginThrottleMu.Lock()
+	defer loginThrottleMu.Unlock()
+
+	var wait time.Duration
+	for _, k := range loginThrottleKeys(ip, username) {
+		entry := loginThrottle[k.key]
+		if entry == nil {
+			continue
+		}
+		expired := now.Sub(entry.firstSeen) > loginWindow && now.After(entry.lockedUntil)
+		if expired {
+			delete(loginThrottle, k.key)
+			continue
+		}
+		if now.Before(entry.lockedUntil) {
+			if w := entry.lockedUntil.Sub(now); w > wait {
+				wait = w
+			}
+		}
+	}
+	return wait
+}
+
+func recordLoginFailure(ip, username string, now time.Time) {
+	loginThrottleMu.Lock()
+	defer loginThrottleMu.Unlock()
+
+	for _, k := range loginThrottleKeys(ip, username) {
+		entry := loginThrottle[k.key]
+		if entry == nil || now.Sub(entry.firstSeen) > loginWindow {
+			entry = &loginThrottleEntry{firstSeen: now}
+			loginThrottle[k.key] = entry
+		}
+		entry.failures++
+		if entry.failures >= k.max {
+			entry.lockedUntil = now.Add(loginLockDuration)
+		}
+	}
+}
+
+func clearLoginPairThrottle(ip, username string) {
+	username = strings.ToLower(strings.TrimSpace(username))
+	if ip == "" || username == "" {
+		return
+	}
+	loginThrottleMu.Lock()
+	delete(loginThrottle, "pair:"+ip+":"+username)
+	loginThrottleMu.Unlock()
+}
+
+func throttleLogin(c *gin.Context, wait time.Duration) {
+	seconds := int(wait.Round(time.Second).Seconds())
+	if seconds < 1 {
+		seconds = 1
+	}
+	c.Header("Retry-After", strconv.Itoa(seconds))
+	c.JSON(429, gin.H{"error": "Terlalu banyak percobaan. Coba lagi nanti."})
+}
+
 func Login(c *gin.Context) {
+	start := time.Now()
 	var req struct {
 		Username string `json:"username"`
 		Password string `json:"password"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(400, gin.H{"error": "Invalid request"})
+		c.JSON(400, gin.H{"error": loginGenericError})
 		return
 	}
+	req.Username = strings.TrimSpace(req.Username)
+	ip := c.ClientIP()
+	if wait := checkLoginThrottle(ip, req.Username, start); wait > 0 {
+		throttleLogin(c, wait)
+		return
+	}
+	if req.Username == "" || req.Password == "" {
+		c.JSON(400, gin.H{"error": loginGenericError})
+		return
+	}
+
 	var user models.User
-	if database.DB.Where("username = ?", req.Username).First(&user).Error != nil {
-		c.JSON(401, gin.H{"error": "Username atau password salah"})
+	passwordHash := dummyLoginHash
+	foundUser := database.DB.Where("username = ?", req.Username).First(&user).Error == nil
+	if foundUser {
+		passwordHash = []byte(user.Password)
+	}
+	passwordOK := bcrypt.CompareHashAndPassword(passwordHash, []byte(req.Password)) == nil
+	if !foundUser || !passwordOK {
+		recordLoginFailure(ip, req.Username, start)
+		c.JSON(401, gin.H{"error": loginGenericError})
 		return
 	}
-	if bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(req.Password)) != nil {
-		c.JSON(401, gin.H{"error": "Username atau password salah"})
-		return
-	}
+
+	clearLoginPairThrottle(ip, req.Username)
 	c.JSON(200, gin.H{"token": issueToken(user), "user": userResponse(user)})
 }
 

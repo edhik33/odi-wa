@@ -28,6 +28,7 @@ type IncomingMessage struct {
 	Mimetype  string
 	FileName  string
 	Data      []byte
+	PushName  string // nama profil pengirim (dari WA), untuk disimpan ke Contact
 }
 
 // MessageHandler dipanggil tiap pesan masuk, membawa ID agent (CS) penerima.
@@ -37,11 +38,12 @@ type MessageHandler func(agentID uint, sender types.JID, in IncomingMessage)
 type DeviceLinkedHandler func(agentID uint, jid, number string)
 
 type waInstance struct {
-	mu      sync.Mutex
-	agentID uint
-	client  *whatsmeow.Client
-	qrCode  string
-	status  string // "disconnected", "qr", "connected"
+	mu             sync.Mutex
+	agentID        uint
+	client         *whatsmeow.Client
+	qrCode         string
+	status         string // "disconnected", "qr", "connected"
+	contactsSynced bool   // true setelah backfill nama kontak dari buku alamat (sekali per proses)
 }
 
 var (
@@ -78,6 +80,13 @@ func SetLabelHandlers(edit LabelEditHandler, assoc LabelAssocHandler) {
 	onLabelAssoc = assoc
 }
 
+// ConnectedHandler dipanggil sekali saat agent tersambung (untuk backfill nama kontak dari buku alamat).
+type ConnectedHandler func(agentID uint)
+
+var onConnected ConnectedHandler
+
+func SetConnectedHandler(h ConnectedHandler) { onConnected = h }
+
 // WA mengembalikan instance WhatsApp untuk satu agent, membuatnya jika belum ada.
 func WA(agentID uint) *waInstance {
 	globalMu.Lock()
@@ -88,6 +97,25 @@ func WA(agentID uint) *waInstance {
 	w := &waInstance{agentID: agentID, status: "disconnected"}
 	instances[agentID] = w
 	return w
+}
+
+// RemoveWA memutus sesi WA agent, mengeluarkannya dari memori (map instances), dan menghapus
+// file sesinya. Dipanggil saat agent dihapus agar tidak bocor memori/koneksi/file descriptor.
+func RemoveWA(agentID uint) {
+	globalMu.Lock()
+	w, ok := instances[agentID]
+	delete(instances, agentID)
+	globalMu.Unlock()
+	if ok {
+		_ = w.Logout() // putus client + lepas koneksi/goroutine
+	}
+	// Hapus file sesi SQLite per-agent. Agent 1 memakai file lama bersama — jangan dihapus.
+	if agentID != 1 {
+		base := fmt.Sprintf("data/wa-session-agent-%d.db", agentID)
+		for _, suffix := range []string{"", "-wal", "-shm"} {
+			os.Remove(base + suffix)
+		}
+	}
 }
 
 // sessionDSN: tiap agent punya file sesi SQLite sendiri (di-key per-agent, bukan per-JID
@@ -193,8 +221,14 @@ func (w *waInstance) handleEvent(evt interface{}) {
 		w.mu.Lock()
 		w.status = "connected"
 		w.qrCode = ""
+		firstSync := !w.contactsSynced
+		w.contactsSynced = true
 		w.mu.Unlock()
 		log.Printf("WA agent %d: connected", w.agentID)
+		// Backfill nama kontak dari buku alamat WA sekali per proses (di goroutine agar tak blok event).
+		if firstSync && onConnected != nil {
+			go onConnected(w.agentID)
+		}
 
 	case *events.Disconnected:
 		// Putus sementara (jaringan) — whatsmeow akan auto-reconnect sendiri.
@@ -229,6 +263,7 @@ func (w *waInstance) handleEvent(evt interface{}) {
 		if !ok || onMessage == nil {
 			return
 		}
+		in.PushName = v.Info.PushName
 		// Kontak modern bisa beralamat LID (privasi). Pakai nomor telepon asli (SenderAlt)
 		// agar yang tersimpan & ditampilkan adalah nomor WA betulan, bukan angka LID.
 		contact := v.Info.Sender

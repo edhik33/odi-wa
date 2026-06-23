@@ -1,6 +1,8 @@
 package handlers
 
 import (
+	"strings"
+
 	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
 	"wa-assistant/backend/services"
@@ -26,7 +28,10 @@ func UpdateSettings(c *gin.Context) {
 		SystemPrompt string `json:"system_prompt"`
 		Tone         string `json:"tone"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	var a models.Agent
 	if database.DB.First(&a, currentAgentID(c)).Error != nil {
 		c.JSON(404, gin.H{"error": "Agent tidak ditemukan"})
@@ -56,7 +61,14 @@ func CreateKnowledge(c *gin.Context) {
 		Answer   string `json:"answer"`
 		Tags     string `json:"tags"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+	if strings.TrimSpace(req.Question) == "" || strings.TrimSpace(req.Answer) == "" {
+		c.JSON(400, gin.H{"error": "Pertanyaan & jawaban wajib diisi"})
+		return
+	}
 	k := models.Knowledge{AgentID: aid, Question: req.Question, Answer: req.Answer, Tags: req.Tags}
 	database.DB.Create(&k)
 	services.IndexKnowledge(&k)
@@ -74,7 +86,10 @@ func UpdateKnowledge(c *gin.Context) {
 		Answer   string `json:"answer"`
 		Tags     string `json:"tags"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	if req.Question != "" {
 		k.Question = req.Question
 	}

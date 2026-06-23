@@ -62,7 +62,10 @@ func CreateAutoReply(c *gin.Context) {
 		Reply     string `json:"reply"`
 		SortOrder int    `json:"sort_order"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	if strings.TrimSpace(req.Keywords) == "" || strings.TrimSpace(req.Reply) == "" {
 		c.JSON(400, gin.H{"error": "Kata kunci & balasan wajib diisi"})
 		return
@@ -93,7 +96,10 @@ func UpdateAutoReply(c *gin.Context) {
 		Enabled   *bool   `json:"enabled"`
 		SortOrder *int    `json:"sort_order"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	if req.Keywords != nil {
 		r.Keywords = *req.Keywords
 	}

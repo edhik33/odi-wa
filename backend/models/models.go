@@ -21,6 +21,7 @@ type Agent struct {
 	Name         string    `json:"name"`
 	SystemPrompt string    `gorm:"type:text" json:"system_prompt"`
 	Tone         string    `gorm:"default:ramah" json:"tone"`
+	AIEnabled    bool      `gorm:"not null;default:true" json:"ai_enabled"` // master switch balasan otomatis AI (mati = chat masuk inbox untuk dibalas manual)
 	DeviceJID    string    `json:"device_jid"` // device whatsmeow yang ter-link
 	Number       string    `json:"number"`     // nomor WA (cache untuk tampilan)
 
@@ -50,6 +51,16 @@ type ChatHistory struct {
 	FileName  string    `json:"file_name"`
 	Mimetype  string    `json:"mimetype"`
 	CreatedAt time.Time `json:"created_at"`
+}
+
+// Contact = nama profil WA kontak, ditangkap dari PushName tiap pesan masuk.
+// Dipakai menampilkan nama di inbox & sumber broadcast (pernah chat, label, grup).
+type Contact struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	AgentID   uint      `gorm:"uniqueIndex:idx_contact_agent_number;not null" json:"agent_id"`
+	Number    string    `gorm:"uniqueIndex:idx_contact_agent_number;size:32;not null" json:"number"`
+	Name      string    `json:"name"`
+	UpdatedAt time.Time `json:"updated_at"`
 }
 
 // Handoff = kontak yang sedang "diambil alih manusia" (bot berhenti auto-reply ke nomor ini).

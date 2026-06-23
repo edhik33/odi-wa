@@ -1,6 +1,6 @@
 import { createTheme } from '@mui/material/styles';
 
-// Tema Material Design 3 (skema hijau brand) — disetel agar tipografi & spasi konsisten.
+// Tema app dibuat rapat untuk dashboard operasional: sedikit chrome, radius kecil, dan padding konsisten.
 const theme = createTheme({
   palette: {
     mode: 'light',
@@ -13,42 +13,66 @@ const theme = createTheme({
     text: { primary: '#1A1C19', secondary: '#5a635c' },
     divider: '#DCE5DC',
   },
-  shape: { borderRadius: 14 },
+  shape: { borderRadius: 6 },
   typography: {
-    fontFamily: 'Roboto, Inter, system-ui, "Helvetica Neue", Arial, sans-serif',
-    h4: { fontWeight: 800, fontSize: '1.6rem', lineHeight: 1.3, letterSpacing: '-0.01em' },
-    h5: { fontWeight: 800, fontSize: '1.3rem', lineHeight: 1.3, letterSpacing: '-0.01em' },
-    h6: { fontWeight: 700, fontSize: '1.05rem', lineHeight: 1.4 },
-    subtitle1: { fontWeight: 600, lineHeight: 1.5 },
-    subtitle2: { fontWeight: 700, fontSize: '0.875rem', lineHeight: 1.5 },
-    body1: { lineHeight: 1.6 },
-    body2: { lineHeight: 1.6 },
-    caption: { lineHeight: 1.5 },
+    fontFamily: 'Inter, Roboto, system-ui, "Helvetica Neue", Arial, sans-serif',
+    h4: { fontWeight: 800, fontSize: '1.35rem', lineHeight: 1.25, letterSpacing: 0 },
+    h5: { fontWeight: 800, fontSize: '1.13rem', lineHeight: 1.3, letterSpacing: 0 },
+    h6: { fontWeight: 750, fontSize: '0.98rem', lineHeight: 1.35, letterSpacing: 0 },
+    subtitle1: { fontWeight: 650, lineHeight: 1.45 },
+    subtitle2: { fontWeight: 750, fontSize: '0.84rem', lineHeight: 1.35 },
+    body1: { fontSize: '0.94rem', lineHeight: 1.45 },
+    body2: { fontSize: '0.86rem', lineHeight: 1.45 },
+    caption: { fontSize: '0.75rem', lineHeight: 1.35 },
     button: { textTransform: 'none', fontWeight: 600, letterSpacing: 0 },
   },
   components: {
     MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+    MuiButtonBase: {
+      styleOverrides: { root: { cursor: 'pointer' } },
+    },
     MuiButton: {
-      defaultProps: { disableElevation: true },
-      styleOverrides: { root: { borderRadius: 999, paddingBlock: 8, paddingInline: 18 } },
+      defaultProps: { disableElevation: true, size: 'small' },
+      styleOverrides: {
+        root: { borderRadius: 5, paddingBlock: 5, paddingInline: 12, minHeight: 32 },
+        sizeLarge: { minHeight: 38, paddingBlock: 7, paddingInline: 16 },
+      },
     },
     MuiCard: {
       defaultProps: { elevation: 0 },
-      styleOverrides: { root: { borderRadius: 16, border: '1px solid #DCE5DC' } },
+      styleOverrides: { root: { borderRadius: 6, border: '1px solid #DCE5DC' } },
     },
-    // Padding kartu konsisten (termasuk kartu terakhir) supaya rapi.
     MuiCardContent: {
-      styleOverrides: { root: { padding: 20, '&:last-child': { paddingBottom: 20 } } },
+      styleOverrides: { root: { padding: 14, '&:last-child': { paddingBottom: 14 } } },
     },
-    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 12 } } },
-    MuiChip: { styleOverrides: { root: { borderRadius: 8, fontWeight: 600 } } },
+    MuiDialogTitle: { styleOverrides: { root: { padding: '14px 18px', fontSize: '1rem', fontWeight: 750 } } },
+    MuiDialogContent: { styleOverrides: { root: { padding: '14px 18px' } } },
+    MuiDialogActions: { styleOverrides: { root: { padding: '10px 18px 14px' } } },
+    MuiAlert: { styleOverrides: { root: { borderRadius: 6, padding: '8px 12px' }, message: { padding: '2px 0' } } },
+    MuiIconButton: {
+      defaultProps: { size: 'small' },
+      styleOverrides: { root: { borderRadius: 5, padding: 6 } },
+    },
+    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 6 } } },
+    MuiInputBase: { styleOverrides: { root: { fontSize: '0.9rem' } } },
+    MuiInputLabel: { styleOverrides: { root: { fontSize: '0.9rem' } } },
+    MuiChip: {
+      styleOverrides: {
+        root: { borderRadius: 5, fontWeight: 650, height: 24 },
+        sizeSmall: { height: 22, fontSize: '0.72rem' },
+      },
+    },
     MuiAvatar: { styleOverrides: { root: { fontWeight: 700 } } },
+    MuiMenuItem: { styleOverrides: { root: { cursor: 'pointer' } } },
+    MuiListItemButton: { styleOverrides: { root: { cursor: 'pointer', minHeight: 42, paddingTop: 6, paddingBottom: 6 } } },
+    MuiListItemText: { styleOverrides: { primary: { fontSize: '0.9rem' }, secondary: { fontSize: '0.75rem' } } },
     MuiTableCell: {
       styleOverrides: {
-        root: { borderColor: '#ECF2EC' },
+        root: { borderColor: '#ECF2EC', padding: '8px 10px', fontSize: '0.84rem' },
         head: { fontWeight: 700, color: '#5a635c' },
       },
     },
+    MuiLinearProgress: { styleOverrides: { root: { borderRadius: 6 } } },
   },
 });
 

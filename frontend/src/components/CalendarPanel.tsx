@@ -10,7 +10,9 @@ import CloseIcon from '@mui/icons-material/Close';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useSchedules, useCreateSchedule, useCancelSchedule } from '../hooks';
 import RecipientField from './RecipientField';
+import WhatsAppEditor from './WhatsAppEditor';
 import PageHeader from './PageHeader';
+import { swalConfirm } from '../services/swal';
 import type { ScheduledMessage } from '../types';
 
 const DOW = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
@@ -19,6 +21,14 @@ const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> 
   scheduled: 'warning', done: 'success', cancelled: 'default', interrupted: 'error',
 };
 const pad = (n: number) => String(n).padStart(2, '0');
+
+function errorMessage(error: unknown, fallback: string) {
+  if (typeof error === 'object' && error && 'response' in error) {
+    const response = (error as { response?: { data?: { error?: string } } }).response;
+    return response?.data?.error || fallback;
+  }
+  return fallback;
+}
 
 export default function CalendarPanel({ agentId }: { agentId: number }) {
   const today = new Date();
@@ -36,6 +46,7 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
   const [minDelay, setMinDelay] = useState(10);
   const [maxDelay, setMaxDelay] = useState(30);
   const [err, setErr] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
   const byDate: Record<string, ScheduledMessage[]> = {};
   (schedules || []).forEach(s => {
@@ -60,12 +71,15 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
 
   const save = async () => {
     setErr('');
-    if (!message.trim()) { setErr('Pesan wajib diisi'); return; }
+    const e: Record<string, string> = {};
+    if (!message.trim()) e.message = 'Pesan wajib diisi';
     const recList = recipients.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
       const [num, ...rest] = line.split(',');
       return { number: num, name: rest.join(',').trim() };
     });
-    if (recList.length === 0) { setErr('Penerima wajib diisi'); return; }
+    if (recList.length === 0) e.recipients = 'Penerima wajib diisi';
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
     if (!selDate) return;
     const runAt = new Date(`${selDate}T${time}:00`);
     if (runAt.getTime() < Date.now()) { setErr('Waktu jadwal sudah lewat'); return; }
@@ -79,8 +93,8 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
     try {
       await createSchedule.mutateAsync(fd);
       setMessage(''); setRecipients(''); setFile(null);
-    } catch (e: any) {
-      setErr(e.response?.data?.error || 'Gagal menjadwalkan');
+    } catch (e) {
+      setErr(errorMessage(e, 'Gagal menjadwalkan'));
     }
   };
 
@@ -93,7 +107,7 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
 
       <Card>
         <CardContent>
-          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1.5 }}>
+          <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
             <IconButton onClick={prevMonth}><ChevronLeftIcon /></IconButton>
             <Typography sx={{ fontWeight: 700 }}>{MONTHS[month]} {year}</Typography>
             <IconButton onClick={nextMonth}><ChevronRightIcon /></IconButton>
@@ -106,7 +120,7 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
               <Box key={i} onClick={() => openDay(day)}
                 sx={{
                   cursor: 'pointer', border: '1px solid', borderColor: 'divider', borderRadius: 1.5,
-                  minHeight: { xs: 52, sm: 64 }, p: 0.5, bgcolor: isToday(day) ? '#e8f5e9' : '#fff',
+                  minHeight: { xs: 46, sm: 56 }, p: 0.5, bgcolor: isToday(day) ? '#e8f5e9' : '#fff',
                   '&:hover': { bgcolor: '#f1f8f4' },
                 }}>
                 <Typography variant="caption" sx={{ fontWeight: 700 }}>{day}</Typography>
@@ -138,21 +152,24 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
                   <Stack direction="row" sx={{ alignItems: 'center', gap: 0.5 }}>
                     <Chip size="small" label={s.status} color={STATUS_COLOR[s.status] ?? 'default'} />
                     {s.status === 'scheduled' && (
-                      <IconButton size="small" color="error" onClick={() => cancelSchedule.mutate(s.id)}><DeleteIcon fontSize="small" /></IconButton>
+                      <IconButton size="small" color="error" onClick={async () => { if (await swalConfirm('Batalkan jadwal ini?')) cancelSchedule.mutate(s.id); }}><DeleteIcon fontSize="small" /></IconButton>
                     )}
                   </Stack>
                 </Stack>
               ))}
-              <Divider sx={{ my: 2 }} />
+              <Divider sx={{ my: 1.5 }} />
             </Box>
           )}
 
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Jadwalkan pesan baru</Typography>
-          {err && <Alert severity="error" sx={{ mb: 2 }}>{err}</Alert>}
+          {err && <Alert severity="error" sx={{ mb: 1.5 }}>{err}</Alert>}
           <TextField type="time" label="Jam" size="small" value={time} onChange={e => setTime(e.target.value)}
-            slotProps={{ inputLabel: { shrink: true } }} sx={{ mb: 2 }} />
-          <TextField fullWidth multiline rows={3} label="Pesan" value={message} onChange={e => setMessage(e.target.value)}
-            placeholder="Halo {nama}, ..." sx={{ mb: 1.5 }} />
+            slotProps={{ inputLabel: { shrink: true } }} sx={{ mb: 1.5 }} />
+          <Box sx={{ mb: 1.25 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Pesan</Typography>
+            <WhatsAppEditor value={message} onChange={v => { setMessage(v); if (errors.message) setErrors(p => ({...p, message: ''})); }}
+              placeholder="Halo {nama}, ..." rows={3} error={!!errors.message} helperText={errors.message} />
+          </Box>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5 }}>
             <Button component="label" size="small" variant="outlined" startIcon={<AttachFileIcon />}>
               Lampiran
@@ -161,10 +178,10 @@ export default function CalendarPanel({ agentId }: { agentId: number }) {
             {file && <Chip label={file.name} size="small" onDelete={() => setFile(null)} deleteIcon={<CloseIcon />} />}
           </Stack>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>Penerima</Typography>
-          <RecipientField agentId={agentId} value={recipients} onChange={setRecipients} />
-          <Stack direction="row" spacing={2} sx={{ mt: 1.5 }}>
-            <TextField type="number" size="small" label="Jeda min (dtk)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: 140 }} />
-            <TextField type="number" size="small" label="Jeda maks (dtk)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: 140 }} />
+          <RecipientField agentId={agentId} value={recipients} onChange={v => { setRecipients(v); if (errors.recipients) setErrors(p => ({...p, recipients: ''})); }} error={errors.recipients} />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mt: 1.25 }}>
+            <TextField type="number" size="small" label="Jeda min (dtk)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 132 } }} />
+            <TextField type="number" size="small" label="Jeda maks (dtk)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 132 } }} />
           </Stack>
         </DialogContent>
         <DialogActions>

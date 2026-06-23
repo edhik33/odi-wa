@@ -8,7 +8,10 @@ export default defineConfig({
     // Teruskan semua request /api/* ke backend Go (:3030).
     // Frontend pakai baseURL relatif '/api', jadi tidak perlu CORS & port-agnostic.
     proxy: {
-      '/api': 'http://localhost:3030',
+      '/api': {
+        target: 'http://127.0.0.1:3030',
+        changeOrigin: true,
+      },
     },
   },
 })

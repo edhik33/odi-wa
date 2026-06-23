@@ -61,10 +61,11 @@ func LabelContacts(c *gin.Context) {
 	var senders []string
 	database.DB.Model(&models.ChatLabel{}).Where("agent_id = ? AND label_id = ?", id, c.Query("label_id")).Pluck("sender", &senders)
 	out := optedOutSet(id)
+	names := contactNames(id)
 	res := make([]gin.H, 0, len(senders))
 	for _, s := range senders {
 		if s != "" && !out[s] {
-			res = append(res, gin.H{"number": s, "name": ""})
+			res = append(res, gin.H{"number": s, "name": names[s]})
 		}
 	}
 	c.JSON(200, gin.H{"data": res})
@@ -105,11 +106,16 @@ func GroupMembers(c *gin.Context) {
 		return
 	}
 	out := optedOutSet(id)
+	names := contactNames(id)
 	res := make([]services.WAContact, 0, len(members))
 	for _, m := range members {
-		if !out[m.Number] {
-			res = append(res, m)
+		if out[m.Number] {
+			continue
 		}
+		if m.Name == "" {
+			m.Name = names[m.Number] // lengkapi dari kontak yang pernah chat
+		}
+		res = append(res, m)
 	}
 	c.JSON(200, gin.H{"data": res})
 }

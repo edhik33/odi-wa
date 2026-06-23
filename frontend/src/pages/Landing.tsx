@@ -1,5 +1,6 @@
-import { Box, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip } from '@mui/material';
+import { Box, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
+import heroLogo from '../assets/Logo-chatloop-gradients.png';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined';
@@ -19,17 +20,17 @@ const FEATURES = [
   {
     icon: <ChatBubbleOutlineIcon />,
     title: 'Balasan yang terasa seperti manusia',
-    body: 'Wai menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
+    body: 'ChatLoop menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
   },
   {
     icon: <LightbulbOutlinedIcon />,
     title: 'Paham detail bisnismu',
-    body: 'Ajari sekali lewat knowledge base. Wai mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
+    body: 'Ajari sekali lewat knowledge base. ChatLoop mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
   },
   {
     icon: <SupportAgentOutlinedIcon />,
     title: 'Tahu kapan harus memanggilmu',
-    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, Wai berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
+    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, ChatLoop berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
   },
   {
     icon: <DevicesOutlinedIcon />,
@@ -41,19 +42,22 @@ const FEATURES = [
 const STEPS = [
   { n: '1', title: 'Hubungkan WhatsApp', body: 'Pindai satu QR, nomormu langsung tersambung.' },
   { n: '2', title: 'Ajari sebentar', body: 'Ceritakan soal produk dan pilih gaya bicaranya.' },
-  { n: '3', title: 'Biarkan Wai bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
+  { n: '3', title: 'Biarkan ChatLoop bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
 ];
+
+function CtaButton({ size = 'large', loggedIn, onClick }: { size?: ButtonProps['size']; loggedIn: boolean; onClick: () => void }) {
+  return (
+    <Button variant="contained" size={size} onClick={onClick} sx={{ fontWeight: 700, px: 4, py: 1.4 }}>
+      {loggedIn ? 'Buka Dashboard' : 'Coba Gratis 7 Hari'}
+    </Button>
+  );
+}
 
 export default function Landing() {
   const navigate = useNavigate();
   const { data: plans } = usePublicPlans();
   const loggedIn = !!localStorage.getItem('token');
-
-  const Cta = ({ size = 'large' as const }) => (
-    <Button variant="contained" size={size} onClick={() => navigate(loggedIn ? '/app' : '/daftar')} sx={{ fontWeight: 700, px: 4, py: 1.4 }}>
-      {loggedIn ? 'Buka Dashboard' : 'Coba Gratis 7 Hari'}
-    </Button>
-  );
+  const goToCta = () => navigate(loggedIn ? '/app' : '/daftar');
 
   return (
     <Box sx={{ bgcolor: 'background.default' }}>
@@ -61,8 +65,7 @@ export default function Landing() {
       <Box sx={{ position: 'sticky', top: 0, zIndex: 20, bgcolor: 'rgba(244,251,246,0.85)', backdropFilter: 'blur(8px)', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Avatar sx={{ bgcolor: 'primary.main', width: 36, height: 36 }}>W</Avatar>
-            <Typography sx={{ fontWeight: 800, fontSize: 20 }}>Wai</Typography>
+            <img src={heroLogo} alt="ChatLoop" style={{ height: 'clamp(28px, 6vw, 38px)' }} />
           </Stack>
           <Stack direction="row" spacing={1}>
             <Button onClick={() => navigate('/login')}>Masuk</Button>
@@ -81,10 +84,10 @@ export default function Landing() {
             Pelanggan chat kapan saja, bisnismu tetap menjawab
           </Typography>
           <Typography variant="h6" sx={{ fontWeight: 400, color: 'text.secondary', mb: 4, maxWidth: 620, mx: 'auto' }}>
-            Wai membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
+            ChatLoop membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
-            <Cta />
+            <CtaButton loggedIn={loggedIn} onClick={goToCta} />
             <Button variant="text" size="large" onClick={() => navigate('/login')}>Sudah punya akun</Button>
           </Stack>
           <Typography variant="body2" color="text.secondary" sx={{ mt: 2 }}>
@@ -113,7 +116,7 @@ export default function Landing() {
           ))}
         </Grid>
         <Typography variant="h5" sx={{ fontWeight: 800, textAlign: 'center', mt: 5, color: 'primary.dark' }}>
-          Mulai sekarang, semua itu biar Wai yang urus.
+          Mulai sekarang, semua itu biar ChatLoop yang urus.
         </Typography>
       </Container>
 
@@ -121,10 +124,10 @@ export default function Landing() {
       <Box sx={{ bgcolor: '#fff', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ py: { xs: 7, md: 10 } }}>
           <Typography variant="h4" sx={{ fontWeight: 800, textAlign: 'center', mb: 1 }}>
-            Kenapa pemilik bisnis jatuh cinta sama Wai
+            Kenapa pemilik bisnis jatuh cinta sama ChatLoop
           </Typography>
           <Typography color="text.secondary" sx={{ textAlign: 'center', mb: 5 }}>
-            Bukan sekadar balas otomatis. Wai hadir layaknya CS terbaikmu.
+            Bukan sekadar balas otomatis. ChatLoop hadir layaknya CS terbaikmu.
           </Typography>
           <Grid container spacing={3}>
             {FEATURES.map((f, i) => (
@@ -205,7 +208,7 @@ export default function Landing() {
             Pelanggan berikutnya bisa datang malam ini juga
           </Typography>
           <Typography sx={{ opacity: 0.9, mb: 4, fontSize: 18 }}>
-            Coba Wai gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
+            Coba ChatLoop gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
           </Typography>
           <Button variant="contained" size="large" onClick={() => navigate(loggedIn ? '/app' : '/daftar')}
             sx={{ bgcolor: '#fff', color: 'primary.dark', fontWeight: 800, px: 5, py: 1.5, '&:hover': { bgcolor: '#f0f0f0' } }}>
@@ -217,9 +220,9 @@ export default function Landing() {
       {/* Footer */}
       <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
         <Typography variant="body2" color="text.secondary">
-          Wai. Asisten WhatsApp yang bikin bisnismu selalu hadir untuk pelanggan.
+          ChatLoop. Asisten WhatsApp yang bikin bisnismu selalu hadir untuk pelanggan.
         </Typography>
-        <Typography variant="caption" color="text.secondary">© {new Date().getFullYear()} Wai</Typography>
+        <Typography variant="caption" color="text.secondary">© {new Date().getFullYear()} ChatLoop</Typography>
       </Container>
     </Box>
   );

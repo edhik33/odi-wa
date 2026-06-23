@@ -8,6 +8,7 @@ import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useAdminPlans, useSavePlan, useDeletePlan } from '../../hooks';
+import { swalConfirm } from '../../services/swal';
 import type { Plan } from '../../types';
 import { rupiah } from '../../types';
 import PageHeader from '../../components/PageHeader';
@@ -31,7 +32,7 @@ export default function AdminPlans() {
 
   const save = async () => { await savePlan.mutateAsync(form); setOpen(false); };
   const remove = async (p: Plan) => {
-    if (window.confirm(`Hapus plan "${p.name}"?`)) await deletePlan.mutateAsync(p.id);
+    if (await swalConfirm(`Hapus plan "${p.name}"?`)) await deletePlan.mutateAsync(p.id);
   };
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;

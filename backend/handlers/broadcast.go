@@ -128,9 +128,34 @@ func CreateBroadcast(c *gin.Context) {
 	c.JSON(200, gin.H{"data": b})
 }
 
-// CleanupStuckBroadcasts menandai broadcast yang masih "running" saat server mati sebagai interrupted.
-func CleanupStuckBroadcasts() {
-	database.DB.Model(&models.Broadcast{}).Where("status = ?", "running").Update("status", "interrupted")
+// ResumeBroadcasts melanjutkan broadcast yang masih punya penerima "pending"
+// (mis. server sempat restart di tengah pengiriman). Dipanggil sekali saat startup.
+func ResumeBroadcasts() {
+	var bs []models.Broadcast
+	database.DB.Where("status IN ?", []string{"running", "interrupted", "pending"}).Find(&bs)
+	for _, b := range bs {
+		var pending int64
+		database.DB.Model(&models.BroadcastRecipient{}).Where("broadcast_id = ? AND status = ?", b.ID, "pending").Count(&pending)
+		if pending == 0 {
+			database.DB.Model(&models.Broadcast{}).Where("id = ?", b.ID).Update("status", "done")
+			continue
+		}
+		go resumeBroadcast(b.ID, b.AgentID)
+	}
+}
+
+// resumeBroadcast menunggu WA agent tersambung (maks ~90 detik) lalu melanjutkan pengiriman.
+func resumeBroadcast(broadcastID, agentID uint) {
+	for i := 0; i < 18; i++ {
+		if services.WA(agentID).GetStatus() == "connected" {
+			log.Printf("Melanjutkan broadcast %d (agent %d)", broadcastID, agentID)
+			runBroadcast(broadcastID, agentID, 10, 30) // delay default (min/max tidak dipersistensikan)
+			return
+		}
+		time.Sleep(5 * time.Second)
+	}
+	database.DB.Model(&models.Broadcast{}).Where("id = ?", broadcastID).Update("status", "interrupted")
+	log.Printf("Broadcast %d belum dilanjutkan: WA agent %d tidak tersambung", broadcastID, agentID)
 }
 
 // runBroadcast mengirim pesan ke tiap penerima dengan jeda acak (anti-banned).
@@ -151,18 +176,24 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 	dailyCap := config.EnvInt("BROADCAST_DAILY_CAP", 200)
 	sent, failed, skipped := 0, 0, 0
 
+	// Muat sekali di awal (bukan query per-penerima): himpunan opt-out + jumlah terkirim hari ini.
+	optedOut := optedOutSet(agentID)
+	daily := int(dailySentCount(agentID))
+
 	for i, r := range recipients {
+		// Segarkan daftar opt-out berkala agar pelanggan yang baru kirim STOP di tengah jalan tetap dihormati.
+		if i > 0 && i%25 == 0 {
+			optedOut = optedOutSet(agentID)
+		}
 		// Lewati yang sudah opt-out.
-		var oc int64
-		database.DB.Model(&models.OptOut{}).Where("agent_id = ? AND sender = ?", agentID, r.Number).Count(&oc)
-		if oc > 0 {
+		if optedOut[r.Number] {
 			markRecipient(r.ID, "skipped", "opt-out")
 			skipped++
 			updateBroadcastCounters(broadcastID, sent, failed, skipped)
 			continue
 		}
 		// Hormati batas harian (anti-banned).
-		if dailySentCount(agentID) >= int64(dailyCap) {
+		if daily >= dailyCap {
 			markRecipient(r.ID, "skipped", "batas harian tercapai")
 			skipped++
 			updateBroadcastCounters(broadcastID, sent, failed, skipped)
@@ -187,6 +218,7 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 			database.DB.Model(&models.BroadcastRecipient{}).Where("id = ?", r.ID).
 				Updates(map[string]any{"status": "sent", "sent_at": &now, "error": ""})
 			sent++
+			daily++ // hitung pemakaian jatah harian secara in-memory
 		}
 		updateBroadcastCounters(broadcastID, sent, failed, skipped)
 
@@ -280,6 +312,46 @@ func optedOutSet(agentID uint) map[string]bool {
 	return set
 }
 
+// contactNames = peta nomor -> nama profil (dari tabel Contact) untuk satu agent.
+func contactNames(agentID uint) map[string]string {
+	var cs []models.Contact
+	database.DB.Where("agent_id = ?", agentID).Find(&cs)
+	m := make(map[string]string, len(cs))
+	for _, c := range cs {
+		if c.Name != "" {
+			m[c.Number] = c.Name
+		}
+	}
+	return m
+}
+
+// OnAgentConnected mengisi tabel Contact dari buku alamat WA saat agent tersambung.
+// Hanya menambah nomor yang belum punya nama (tidak menimpa nama hasil PushName/chat).
+func OnAgentConnected(agentID uint) {
+	contacts, err := services.WA(agentID).GetContacts()
+	if err != nil || len(contacts) == 0 {
+		return
+	}
+	var existing []models.Contact
+	database.DB.Where("agent_id = ?", agentID).Find(&existing)
+	have := make(map[string]bool, len(existing))
+	for _, c := range existing {
+		have[c.Number] = true
+	}
+	fresh := make([]models.Contact, 0)
+	for _, ct := range contacts {
+		if ct.Number == "" || ct.Name == "" || have[ct.Number] {
+			continue
+		}
+		have[ct.Number] = true // cegah duplikat dalam batch yang sama
+		fresh = append(fresh, models.Contact{AgentID: agentID, Number: ct.Number, Name: ct.Name})
+	}
+	if len(fresh) > 0 {
+		database.DB.CreateInBatches(fresh, 200)
+		log.Printf("Backfill kontak (agent %d): %d nama dari buku alamat WhatsApp", agentID, len(fresh))
+	}
+}
+
 // ChatContacts = kontak yang PERNAH chat agent ini (sumber broadcast paling aman). Tanpa yang opt-out.
 func ChatContacts(c *gin.Context) {
 	id, ok := resolveAgent(c)
@@ -290,10 +362,11 @@ func ChatContacts(c *gin.Context) {
 	database.DB.Model(&models.ChatHistory{}).Where("agent_id = ? AND sender <> ''", id).
 		Distinct().Pluck("sender", &senders)
 	out := optedOutSet(id)
+	names := contactNames(id)
 	res := make([]gin.H, 0, len(senders))
 	for _, s := range senders {
 		if !out[s] {
-			res = append(res, gin.H{"number": s, "name": ""})
+			res = append(res, gin.H{"number": s, "name": names[s]})
 		}
 	}
 	c.JSON(200, gin.H{"data": res})

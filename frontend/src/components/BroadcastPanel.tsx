@@ -10,6 +10,7 @@ import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail } from '../hooks';
 import RecipientField from './RecipientField';
+import WhatsAppEditor from './WhatsAppEditor';
 import PageHeader from './PageHeader';
 import type { NumberCheck } from '../types';
 
@@ -35,6 +36,7 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
   const [maxDelay, setMaxDelay] = useState(30);
   const [file, setFile] = useState<File | null>(null);
   const [info, setInfo] = useState('');
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [checked, setChecked] = useState<NumberCheck[] | null>(null);
   const [page, setPage] = useState(1);
@@ -63,8 +65,11 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
 
   const openModal = () => {
     setInfo('');
-    if (!message.trim()) { setInfo('Pesan tidak boleh kosong.'); return; }
-    if (parsed.length === 0) { setInfo('Masukkan minimal satu nomor.'); return; }
+    const e: Record<string, string> = {};
+    if (!message.trim()) e.message = 'Pesan tidak boleh kosong';
+    if (parsed.length === 0) e.recipients = 'Masukkan minimal satu nomor';
+    setErrors(e);
+    if (Object.keys(e).length > 0) return;
     setChecked(null);
     setModalOpen(true);
     checkNumbers.mutateAsync(parsed.map(p => p.number)).then(setChecked).catch(() => setChecked([]));
@@ -86,20 +91,22 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
       <PageHeader title="Broadcast"
         subtitle="Kirim pesan (bisa dengan gambar/file) ke banyak kontak dengan jeda aman. Nomor dicek dulu sebelum dikirim." />
 
-      <Alert severity="warning" sx={{ mb: 3 }}>
+      <Alert severity="warning" sx={{ mb: 2 }}>
         <b>Biar nomor tidak diblokir WhatsApp:</b> kirim hanya ke kontak yang sudah pernah berinteraksi,
         jangan ke nomor dingin. Mulai dari sedikit dulu (warm up), pakai jeda, dan sisipkan
         <code> {'{nama}'} </code> agar pesan tidak identik. Kontak yang membalas STOP otomatis berhenti.
       </Alert>
 
-      <Card sx={{ mb: 3 }}>
+      <Card sx={{ mb: 2 }}>
         <CardContent>
           <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Pesan</Typography>
-          <TextField fullWidth multiline rows={4} value={message} onChange={e => setMessage(e.target.value)}
-            placeholder="Halo {nama}, ada promo spesial untuk kamu hari ini…" sx={{ mb: 1.5 }} />
+          <Box sx={{ mb: 1.25 }}>
+            <WhatsAppEditor value={message} onChange={v => { setMessage(v); if (errors.message) setErrors(p => ({...p, message: ''})); }}
+              placeholder="Halo {nama}, ada promo spesial untuk kamu hari ini…" error={!!errors.message} helperText={errors.message} />
+          </Box>
 
           {/* Lampiran */}
-          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 2 }}>
+          <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1.5, flexWrap: 'wrap' }}>
             <Button component="label" size="small" variant="outlined" startIcon={<AttachFileIcon />}>
               Lampirkan gambar/file
               <input type="file" hidden onChange={e => setFile(e.target.files?.[0] || null)} />
@@ -111,19 +118,19 @@ export default function BroadcastPanel({ agentId }: { agentId: number }) {
           <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
             Satu nomor per baris (format <code>nomor,nama</code> untuk personalisasi), atau impor dari sumber di bawah.
           </Typography>
-          <RecipientField agentId={agentId} value={recipientsText} onChange={v => { setRecipientsText(v); setChecked(null); }} />
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, mb: 2, display: 'block' }}>
+          <RecipientField agentId={agentId} value={recipientsText} onChange={v => { setRecipientsText(v); setChecked(null); if (errors.recipients) setErrors(p => ({...p, recipients: ''})); }} error={errors.recipients} />
+          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, mb: 1.5, display: 'block' }}>
             Disarankan pakai <b>"Pernah chat"</b> (hangat, aman). Sinkron WA / anggota grup lebih berisiko.
           </Typography>
 
-          <Stack direction="row" spacing={2} sx={{ mb: 2 }}>
-            <TextField type="number" size="small" label="Jeda min (detik)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: 150 }} />
-            <TextField type="number" size="small" label="Jeda maks (detik)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: 150 }} />
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1.5 }}>
+            <TextField type="number" size="small" label="Jeda min (detik)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
+            <TextField type="number" size="small" label="Jeda maks (detik)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
           </Stack>
 
-          {info && <Alert severity="info" sx={{ mb: 2 }}>{info}</Alert>}
+          {info && <Alert severity="info" sx={{ mb: 1.5 }}>{info}</Alert>}
 
-          <Button variant="contained" size="large" startIcon={<SendIcon />} onClick={openModal}>
+          <Button variant="contained" startIcon={<SendIcon />} onClick={openModal}>
             Cek Nomor &amp; Kirim ({parsed.length})
           </Button>
         </CardContent>

@@ -22,12 +22,13 @@ func main() {
 	services.InitWA(config.Env("DB_PATH", "./wa-assistant.db"))
 	services.SetHandlers(handlers.OnWAMessage, handlers.OnDeviceLinked)
 	services.SetLabelHandlers(handlers.OnLabelEdit, handlers.OnLabelAssoc)
+	services.SetConnectedHandler(handlers.OnAgentConnected)
 
 	// Sambungkan ulang semua agent yang sudah ter-link.
 	go handlers.StartAgents()
 
-	// Tandai broadcast/jadwal yang nyangkut "running" (server mati saat berjalan) sebagai interrupted.
-	handlers.CleanupStuckBroadcasts()
+	// Lanjutkan broadcast yang sempat terhenti saat server mati; tandai jadwal yang nyangkut.
+	go handlers.ResumeBroadcasts()
 	handlers.CleanupStuckSchedules()
 
 	// Scheduler pesan terjadwal + pembersihan media lama.

@@ -8,6 +8,12 @@ import (
 	"github.com/joho/godotenv"
 )
 
+// init memuat .env SEBELUM variabel package-level lain (mis. jwtSecret) diinisialisasi.
+// Tanpa ini, godotenv.Load() di main() terlambat — var package-level berjalan sebelum main().
+func init() {
+	godotenv.Load(".env")
+}
+
 func Load() {
 	godotenv.Load(".env")
 }

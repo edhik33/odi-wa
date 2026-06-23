@@ -65,7 +65,10 @@ func AdminUpdateTenant(c *gin.Context) {
 		Status *string `json:"status"`
 		PlanID *uint   `json:"plan_id"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	if req.Status != nil {
 		t.Status = *req.Status
 	}

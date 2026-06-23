@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Agent, KnowledgeItem, Handoff } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -116,7 +116,7 @@ export function useContacts(agentId: number) {
 }
 
 export function useConversation(agentId: number, sender: string) {
-  return useQuery<{ data: ChatMsg[]; needs_human: boolean }>({
+  return useQuery<{ data: ChatMsg[]; needs_human: boolean; media_token: string }>({
     queryKey: ['conversation', agentId, sender],
     queryFn: async () => (await api.get(`/agents/${agentId}/conversation`, { params: { sender } })).data,
     enabled: !!agentId && !!sender,
@@ -288,6 +288,145 @@ export function useCreateBroadcast(agentId: number) {
       return (await api.post(`/agents/${agentId}/broadcast`, fd)).data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['broadcasts', agentId] }),
+  });
+}
+
+// ---- Agent list & detail (Dashboard) ----
+
+export function useAgents() {
+  return useQuery<Agent[]>({
+    queryKey: ['agents'],
+    queryFn: async () => (await api.get('/agents')).data.data,
+    staleTime: 30_000,
+  });
+}
+
+export function useAgentStatuses() {
+  return useQuery<Record<string, string>>({
+    queryKey: ['agent-statuses'],
+    queryFn: async () => (await api.get('/agents-status')).data.data,
+    refetchInterval: 4000,
+  });
+}
+
+export function useAgentStatus(agentId: number) {
+  return useQuery<{ status: string; qr: string; number: string; name: string }>({
+    queryKey: ['agent', agentId, 'status'],
+    queryFn: async () => (await api.get(`/agents/${agentId}/wa/status`)).data,
+    enabled: !!agentId,
+    refetchInterval: 4000,
+  });
+}
+
+export function useAgentHistory(agentId: number) {
+  return useQuery<unknown[]>({
+    queryKey: ['agent', agentId, 'history'],
+    queryFn: async () => (await api.get(`/agents/${agentId}/chat-history`)).data.data,
+    enabled: !!agentId,
+    refetchInterval: 4000,
+  });
+}
+
+export function useAgentKnowledge(agentId: number) {
+  return useQuery<KnowledgeItem[]>({
+    queryKey: ['agent', agentId, 'knowledge'],
+    queryFn: async () => (await api.get(`/agents/${agentId}/knowledge`)).data.data,
+    enabled: !!agentId,
+    refetchInterval: 4000,
+  });
+}
+
+export function useAgentHandoffs(agentId: number) {
+  return useQuery<Handoff[]>({
+    queryKey: ['agent', agentId, 'handoffs'],
+    queryFn: async () => (await api.get(`/agents/${agentId}/handoffs`)).data.data,
+    enabled: !!agentId,
+    refetchInterval: 4000,
+  });
+}
+
+// ---- Mutasi agent (Dashboard) ----
+
+export function useSaveAgent(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: Record<string, unknown>) =>
+      (await api.put(`/agents/${agentId}`, body)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agents'] });
+      qc.invalidateQueries({ queryKey: ['agent', agentId] });
+    },
+  });
+}
+
+export function useCreateAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { name: string; tone: string }) =>
+      (await api.post('/agents', body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
+  });
+}
+
+export function useDeleteAgent() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => (await api.delete(`/agents/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agents'] }),
+  });
+}
+
+export function useAgentConnect(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post(`/agents/${agentId}/wa/connect`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'status'] }),
+  });
+}
+
+export function useAgentDisconnect(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => (await api.post(`/agents/${agentId}/wa/logout`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'status'] }),
+  });
+}
+
+export function useAddKnowledge(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { question: string; answer: string; tags: string }) =>
+      (await api.post(`/agents/${agentId}/knowledge`, body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'knowledge'] }),
+  });
+}
+
+export function useDeleteKnowledge(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: number) => (await api.delete(`/agents/${agentId}/knowledge/${id}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'knowledge'] }),
+  });
+}
+
+export function useGenerateKnowledge(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { text: string; count: number }) =>
+      (await api.post(`/agents/${agentId}/knowledge/generate`, body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'knowledge'] }),
+  });
+}
+
+export function useResumeHandoff(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (sender: string) => (await api.delete(`/agents/${agentId}/handoffs/${sender}`)).data,
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['agent', agentId, 'handoffs'] });
+      qc.invalidateQueries({ queryKey: ['conversation', agentId] });
+      qc.invalidateQueries({ queryKey: ['contacts', agentId] });
+    },
   });
 }
 

@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"wa-assistant/backend/database"
@@ -85,8 +86,84 @@ const deferMessage = "Mohon maaf kak, untuk yang ini saya cek dulu ya biar infon
 // quotaMessage = balasan saat kuota AI bulan ini habis (kontak dialihkan ke CS manusia).
 const quotaMessage = "Halo kak 🙏 pesan kakak sudah kami terima, CS kami akan segera membalas ya."
 
+// ---- Debounce: gabungkan pesan teks beruntun jadi satu sebelum diproses ----
+// Lebih manusiawi (bot tidak membalas tiap baris) & hemat panggilan AI.
+
+const debounceWindow = 5 * time.Second
+
+type pendingText struct {
+	timer *time.Timer
+	texts []string
+	tmpl  services.IncomingMessage // simpan PushName dll. dari pesan pertama
+}
+
+var (
+	debounceMu sync.Mutex
+	pending    = map[string]*pendingText{}
+)
+
+func debounceKey(agentID uint, sender types.JID) string {
+	return fmt.Sprintf("%d|%s", agentID, sender.User)
+}
+
+// enqueueText menampung pesan teks; bila ada pesan lain dalam jeda singkat, digabung & timer di-reset.
+func enqueueText(agentID uint, sender types.JID, in services.IncomingMessage) {
+	key := debounceKey(agentID, sender)
+	debounceMu.Lock()
+	defer debounceMu.Unlock()
+	if p := pending[key]; p != nil {
+		p.texts = append(p.texts, in.Text)
+		p.timer.Reset(debounceWindow)
+		return
+	}
+	p := &pendingText{tmpl: in, texts: []string{in.Text}}
+	p.timer = time.AfterFunc(debounceWindow, func() { flushText(agentID, sender, false) })
+	pending[key] = p
+}
+
+// flushText memproses pesan teks tertunda. stopTimer=true saat dipanggil manual (mis. ada media menyusul).
+func flushText(agentID uint, sender types.JID, stopTimer bool) {
+	key := debounceKey(agentID, sender)
+	debounceMu.Lock()
+	p := pending[key]
+	delete(pending, key)
+	debounceMu.Unlock()
+	if p == nil {
+		return
+	}
+	if stopTimer {
+		p.timer.Stop()
+	}
+	combined := p.tmpl
+	combined.Text = strings.TrimSpace(strings.Join(p.texts, "\n"))
+	processMessage(agentID, sender, combined)
+}
+
 // OnWAMessage dipanggil saat ada pesan masuk untuk agent tertentu.
 func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
+	num := sender.User
+
+	// Simpan/segarkan nama profil kontak (dipakai inbox & sumber broadcast).
+	if name := strings.TrimSpace(in.PushName); name != "" {
+		database.DB.Where(models.Contact{AgentID: agentID, Number: num}).
+			Assign(models.Contact{Name: name}).
+			FirstOrCreate(&models.Contact{})
+	}
+
+	// Media diproses langsung; flush dulu teks tertunda kontak ini agar urutannya benar.
+	if in.MediaType != "" {
+		flushText(agentID, sender, true)
+		processMessage(agentID, sender, in)
+		return
+	}
+	if strings.TrimSpace(in.Text) == "" {
+		return // tipe pesan lain (mis. teks kosong) diabaikan
+	}
+	enqueueText(agentID, sender, in)
+}
+
+// processMessage menjalankan pipeline balasan (opt-out, handoff, jam kerja, sapaan, keyword, AI).
+func processMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 	num := sender.User
 
 	var agent models.Agent
@@ -165,6 +242,12 @@ func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 		return
 	}
 
+	// 3c. Balasan AI dimatikan -> bot tidak menjawab, pesan dicatat ke inbox untuk dibalas manual.
+	if !agent.AIEnabled {
+		logRow(displayText, "")
+		return
+	}
+
 	// 4. Media tanpa caption -> bot belum bisa memahaminya -> alihkan ke manusia.
 	if in.MediaType != "" && in.Text == "" {
 		ack := "Terima kasih kak 🙏 file/medianya sudah kami terima, akan segera kami cek ya."
@@ -187,7 +270,7 @@ func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 	// 6. Jawaban AI (teks biasa atau media dengan caption -> AI menjawab captionnya).
 	var history []models.ChatHistory
 	database.DB.Where("agent_id = ? AND sender = ?", agentID, num).
-		Order("created_at desc").Limit(5).Find(&history)
+		Order("created_at desc").Limit(10).Find(&history)
 	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
 		history[i], history[j] = history[j], history[i]
 	}
@@ -203,9 +286,38 @@ func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 		database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText})
 		log.Printf("Eskalasi (agent %d) dari %s: %q", agentID, num, in.Text)
 	}
-	send(reply)
+	sendChunked(agentID, sender, reply) // balasan panjang dipecah jadi beberapa bubble (lebih manusiawi)
 	logRow(displayText, reply)
 	incrementAIUsage(agent.TenantID) // hitung pemakaian kuota bulanan tenant
+}
+
+// sendChunked mengirim balasan AI dalam 1-3 bubble (per paragraf), masing-masing dengan
+// jeda "mengetik" alami dari SendMessage — terasa seperti manusia, bukan satu dinding teks.
+func sendChunked(agentID uint, to types.JID, text string) {
+	for _, part := range splitReply(text) {
+		_ = services.WA(agentID).SendMessage(to, part)
+	}
+}
+
+// splitReply memecah teks per paragraf (baris kosong), maksimal 3 bubble; sisanya digabung ke bubble terakhir.
+func splitReply(text string) []string {
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return nil
+	}
+	var parts []string
+	for _, p := range strings.Split(text, "\n\n") {
+		if p = strings.TrimSpace(p); p != "" {
+			parts = append(parts, p)
+		}
+	}
+	if len(parts) == 0 {
+		return []string{text}
+	}
+	if len(parts) > 3 {
+		parts = append(parts[:2], strings.Join(parts[2:], "\n\n"))
+	}
+	return parts
 }
 
 // withinBusinessHours true bila jam kerja nonaktif, atau waktu sekarang berada dalam rentang jam kerja.
@@ -377,11 +489,18 @@ func CreateAgent(c *gin.Context) {
 		SystemPrompt string `json:"system_prompt"`
 		Tone         string `json:"tone"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+	if strings.TrimSpace(req.Name) == "" {
+		c.JSON(400, gin.H{"error": "Nama CS wajib diisi"})
+		return
+	}
 	if req.Tone == "" {
 		req.Tone = "ramah"
 	}
-	a := models.Agent{TenantID: tid, Name: req.Name, SystemPrompt: req.SystemPrompt, Tone: req.Tone}
+	a := models.Agent{TenantID: tid, Name: strings.TrimSpace(req.Name), SystemPrompt: req.SystemPrompt, Tone: req.Tone, AIEnabled: true}
 	database.DB.Create(&a)
 	c.JSON(201, gin.H{"data": a})
 }
@@ -394,8 +513,9 @@ func UpdateAgent(c *gin.Context) {
 	}
 	var req struct {
 		Name                 string  `json:"name"`
-		SystemPrompt         string  `json:"system_prompt"`
+		SystemPrompt         *string `json:"system_prompt"`
 		Tone                 string  `json:"tone"`
+		AIEnabled            *bool   `json:"ai_enabled"`
 		GreetingEnabled      *bool   `json:"greeting_enabled"`
 		GreetingMessage      *string `json:"greeting_message"`
 		BusinessHoursEnabled *bool   `json:"business_hours_enabled"`
@@ -403,13 +523,21 @@ func UpdateAgent(c *gin.Context) {
 		BusinessEnd          *string `json:"business_end"`
 		AwayMessage          *string `json:"away_message"`
 	}
-	c.ShouldBindJSON(&req)
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
 	if req.Name != "" {
 		a.Name = req.Name
 	}
-	a.SystemPrompt = req.SystemPrompt
+	if req.SystemPrompt != nil {
+		a.SystemPrompt = *req.SystemPrompt
+	}
 	if req.Tone != "" {
 		a.Tone = req.Tone
+	}
+	if req.AIEnabled != nil {
+		a.AIEnabled = *req.AIEnabled
 	}
 	if req.GreetingEnabled != nil {
 		a.GreetingEnabled = *req.GreetingEnabled
@@ -434,6 +562,18 @@ func UpdateAgent(c *gin.Context) {
 }
 
 func DeleteAgent(c *gin.Context) {
-	database.DB.Where("tenant_id = ?", currentTenantID(c)).Delete(&models.Agent{}, c.Param("id"))
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	// Bebaskan sesi WA dari memori (client, goroutine, file sesi) agar tidak bocor.
+	services.RemoveWA(id)
+	// Bersihkan data milik agent agar tidak jadi baris yatim di DB.
+	database.DB.Where("agent_id = ?", id).Delete(&models.Knowledge{})
+	database.DB.Where("agent_id = ?", id).Delete(&models.ChatHistory{})
+	database.DB.Where("agent_id = ?", id).Delete(&models.Contact{})
+	database.DB.Where("agent_id = ?", id).Delete(&models.Handoff{})
+	database.DB.Where("agent_id = ?", id).Delete(&models.AutoReply{})
+	database.DB.Where("tenant_id = ?", currentTenantID(c)).Delete(&models.Agent{}, id)
 	c.JSON(200, gin.H{"message": "Deleted"})
 }

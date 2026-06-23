@@ -122,9 +122,10 @@ func InboxContacts(c *gin.Context) {
 		needsHuman[h.Sender] = true
 	}
 
+	names := contactNames(id)
 	out := make([]gin.H, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, gin.H{"sender": r.Sender, "last_at": r.LastAt, "needs_human": needsHuman[r.Sender]})
+		out = append(out, gin.H{"sender": r.Sender, "last_at": r.LastAt, "needs_human": needsHuman[r.Sender], "name": names[r.Sender]})
 	}
 	c.JSON(200, gin.H{"data": out})
 }
@@ -144,7 +145,7 @@ func InboxConversation(c *gin.Context) {
 	database.DB.Where("agent_id = ? AND sender = ?", id, sender).Order("created_at asc").Limit(200).Find(&msgs)
 	var h int64
 	database.DB.Model(&models.Handoff{}).Where("agent_id = ? AND sender = ?", id, sender).Count(&h)
-	c.JSON(200, gin.H{"data": msgs, "needs_human": h > 0})
+	c.JSON(200, gin.H{"data": msgs, "needs_human": h > 0, "media_token": issueMediaToken(currentTenantID(c))})
 }
 
 // InboxSend mengirim pesan manual dari dashboard ke kontak (ambil alih dari bot).
