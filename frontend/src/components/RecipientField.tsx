@@ -1,14 +1,18 @@
 import { useState } from 'react';
-import { TextField, Button, Stack, Typography, Menu, MenuItem, CircularProgress, Box } from '@mui/material';
+import { TextField, Button, Stack, Typography, Menu, MenuItem, CircularProgress, Box, IconButton, InputAdornment } from '@mui/material';
 import ForumIcon from '@mui/icons-material/ForumOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import GroupsIcon from '@mui/icons-material/GroupsOutlined';
 import LabelIcon from '@mui/icons-material/LabelOutlined';
+import CloseIcon from '@mui/icons-material/Close';
+import SearchIcon from '@mui/icons-material/Search';
 import { useChatContacts, useWAContacts, useGroups, useGroupMembers, useLabels, useLabelContacts } from '../hooks';
 import { normalizePhone } from '../types';
 import type { WAGroup, LabelInfo } from '../types';
 
 type Contact = { number: string; name: string };
+
+const PREVIEW_CAP = 300; // batas baris yang dirender agar daftar besar tetap ringan
 
 export default function RecipientField({ agentId, value, onChange, error }: {
   agentId: number; value: string; onChange: (v: string) => void; error?: string;
@@ -25,6 +29,32 @@ export default function RecipientField({ agentId, value, onChange, error }: {
   const [labelList, setLabelList] = useState<LabelInfo[]>([]);
   const [groupAnchor, setGroupAnchor] = useState<null | HTMLElement>(null);
   const [labelAnchor, setLabelAnchor] = useState<null | HTMLElement>(null);
+  const [showPreview, setShowPreview] = useState(true);
+  const [filter, setFilter] = useState('');
+
+  // Parse isi kotak jadi daftar penerima (nomor dinormalkan), buang duplikat & baris tak valid.
+  const rawLines = value.split('\n').map(l => l.trim()).filter(Boolean);
+  const dedup = new Map<string, string>();
+  let invalid = 0;
+  for (const line of rawLines) {
+    const [num, ...rest] = line.split(',');
+    const number = normalizePhone(num);
+    if (!number) { invalid++; continue; }
+    if (!dedup.has(number)) dedup.set(number, rest.join(',').trim());
+  }
+  const recipients: Contact[] = Array.from(dedup.entries()).map(([number, name]) => ({ number, name }));
+  const dupCount = rawLines.length - invalid - recipients.length;
+
+  const f = filter.trim().toLowerCase();
+  const filtered = f ? recipients.filter(r => r.name.toLowerCase().includes(f) || r.number.includes(f)) : recipients;
+  const shown = filtered.slice(0, PREVIEW_CAP);
+  const capped = filtered.length - shown.length;
+
+  const removeNumber = (num: string) => {
+    const kept = rawLines.filter(line => normalizePhone(line.split(',')[0]) !== num);
+    onChange(kept.join('\n'));
+  };
+  const clearAll = () => { onChange(''); setNote(''); setFilter(''); };
 
   const merge = (list: Contact[], label: string) => {
     const parsed = value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
@@ -76,6 +106,54 @@ export default function RecipientField({ agentId, value, onChange, error }: {
         </Button>
       </Stack>
       {note && <Typography variant="caption" color="success.main" sx={{ display: 'block' }}>{note}</Typography>}
+
+      {/* Pratinjau daftar target */}
+      {recipients.length > 0 && (
+        <Box sx={{ mt: 1 }}>
+          <Stack direction="row" sx={{ alignItems: 'center', gap: 1, mb: 0.5, flexWrap: 'wrap' }}>
+            <Typography variant="caption" sx={{ fontWeight: 700, color: 'success.main' }}>
+              ✓ {recipients.length} nomor valid
+            </Typography>
+            {dupCount > 0 && <Typography variant="caption" color="text.secondary">· {dupCount} duplikat digabung</Typography>}
+            {invalid > 0 && <Typography variant="caption" color="warning.main">· {invalid} baris tak valid</Typography>}
+            <Box sx={{ flex: 1 }} />
+            <Typography variant="caption" color="error" sx={{ cursor: 'pointer', fontWeight: 600 }} onClick={clearAll}>Kosongkan</Typography>
+            <Typography variant="caption" color="primary" sx={{ cursor: 'pointer', fontWeight: 600 }}
+              onClick={() => setShowPreview(v => !v)}>
+              {showPreview ? 'Sembunyikan' : 'Tampilkan'}
+            </Typography>
+          </Stack>
+
+          {showPreview && (
+            <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 0.5 }}>
+              {recipients.length > 8 && (
+                <TextField size="small" fullWidth placeholder="Cari nama atau nomor…" value={filter}
+                  onChange={e => setFilter(e.target.value)} sx={{ mb: 0.5 }}
+                  slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }} />
+              )}
+              <Box sx={{ maxHeight: 200, overflowY: 'auto' }}>
+                {shown.length === 0 ? (
+                  <Typography variant="caption" color="text.secondary" sx={{ p: 1, display: 'block' }}>Tidak ada yang cocok.</Typography>
+                ) : shown.map(r => (
+                  <Stack key={r.number} direction="row" sx={{ alignItems: 'center', gap: 1, px: 1, py: 0.4, borderRadius: 0.5, '&:hover': { bgcolor: 'action.hover' } }}>
+                    <Typography variant="body2" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {r.name ? <>{r.name} <Typography component="span" variant="caption" color="text.secondary">· {r.number}</Typography></> : r.number}
+                    </Typography>
+                    <IconButton size="small" aria-label="Hapus nomor" onClick={() => removeNumber(r.number)} sx={{ p: 0.25 }}>
+                      <CloseIcon sx={{ fontSize: 16 }} />
+                    </IconButton>
+                  </Stack>
+                ))}
+                {capped > 0 && (
+                  <Typography variant="caption" color="text.secondary" sx={{ p: 1, display: 'block' }}>
+                    … dan {capped} lainnya. Pakai kotak cari untuk mempersempit.
+                  </Typography>
+                )}
+              </Box>
+            </Box>
+          )}
+        </Box>
+      )}
 
       <Menu anchorEl={groupAnchor} open={!!groupAnchor} onClose={() => setGroupAnchor(null)}>
         {groupList.length === 0 && <MenuItem disabled>Tidak ada grup</MenuItem>}
