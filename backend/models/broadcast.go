@@ -8,8 +8,13 @@ type Broadcast struct {
 	TenantID  uint      `gorm:"index;not null" json:"tenant_id"`
 	AgentID   uint      `gorm:"index;not null" json:"agent_id"`
 	Message   string    `gorm:"type:text" json:"message"`
-	Status    string    `gorm:"size:16;default:pending;index" json:"status"` // pending, running, done, failed
-	Total     int       `json:"total"`
+	Status    string    `gorm:"size:16;default:pending;index" json:"status"` // pending, running, done, interrupted
+	// Lampiran opsional yang dikirim ke semua penerima (pesan jadi caption).
+	MediaType string `gorm:"size:16" json:"media_type"`
+	MediaPath string `json:"-"`
+	FileName  string `json:"file_name"`
+	Mimetype  string `json:"mimetype"`
+	Total     int    `json:"total"`
 	Sent      int       `json:"sent"`
 	Failed    int       `json:"failed"`
 	Skipped   int       `json:"skipped"`

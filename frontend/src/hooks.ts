@@ -183,8 +183,15 @@ export function useBroadcasts(agentId: number) {
 export function useCreateBroadcast(agentId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { message: string; recipients: { number: string; name: string }[]; min_delay: number; max_delay: number }) =>
-      (await api.post(`/agents/${agentId}/broadcast`, body)).data,
+    mutationFn: async (body: { message: string; recipients: { number: string; name: string }[]; min_delay: number; max_delay: number; file: File | null }) => {
+      const fd = new FormData();
+      fd.append('message', body.message);
+      fd.append('recipients', JSON.stringify(body.recipients));
+      fd.append('min_delay', String(body.min_delay));
+      fd.append('max_delay', String(body.max_delay));
+      if (body.file) fd.append('file', body.file);
+      return (await api.post(`/agents/${agentId}/broadcast`, fd)).data;
+    },
     onSuccess: () => qc.invalidateQueries({ queryKey: ['broadcasts', agentId] }),
   });
 }

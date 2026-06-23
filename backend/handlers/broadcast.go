@@ -1,8 +1,12 @@
 package handlers
 
 import (
+	"encoding/json"
+	"io"
 	"log"
 	"math/rand"
+	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,37 +43,38 @@ func CheckNumbers(c *gin.Context) {
 	c.JSON(200, gin.H{"data": res})
 }
 
-// CreateBroadcast membuat kampanye broadcast & menjalankannya di background (dengan throttle).
+// CreateBroadcast membuat kampanye broadcast (multipart: bisa dengan lampiran) & menjalankannya di background.
 func CreateBroadcast(c *gin.Context) {
 	id, ok := resolveAgent(c)
 	if !ok {
 		return
 	}
 	tid := currentTenantID(c)
-	var req struct {
-		Message    string `json:"message"`
-		Recipients []struct {
-			Number string `json:"number"`
-			Name   string `json:"name"`
-		} `json:"recipients"`
-		MinDelay int `json:"min_delay"`
-		MaxDelay int `json:"max_delay"`
+
+	message := c.PostForm("message")
+	if strings.TrimSpace(message) == "" {
+		c.JSON(400, gin.H{"error": "Pesan wajib diisi"})
+		return
 	}
-	if err := c.ShouldBindJSON(&req); err != nil || strings.TrimSpace(req.Message) == "" || len(req.Recipients) == 0 {
-		c.JSON(400, gin.H{"error": "Pesan & penerima wajib diisi"})
+	var reqRecipients []struct {
+		Number string `json:"number"`
+		Name   string `json:"name"`
+	}
+	if err := json.Unmarshal([]byte(c.PostForm("recipients")), &reqRecipients); err != nil || len(reqRecipients) == 0 {
+		c.JSON(400, gin.H{"error": "Penerima wajib diisi"})
 		return
 	}
 	if services.WA(id).GetStatus() != "connected" {
 		c.JSON(400, gin.H{"error": "WhatsApp belum tersambung"})
 		return
 	}
-	if len(req.Recipients) > 1000 {
+	if len(reqRecipients) > 1000 {
 		c.JSON(400, gin.H{"error": "Maksimal 1000 penerima per broadcast"})
 		return
 	}
 
-	// Throttle aman (detik). Default 10-30, minimal 5.
-	minD, maxD := req.MinDelay, req.MaxDelay
+	minD, _ := strconv.Atoi(c.PostForm("min_delay"))
+	maxD, _ := strconv.Atoi(c.PostForm("max_delay"))
 	if minD < 5 {
 		minD = 10
 	}
@@ -77,11 +82,30 @@ func CreateBroadcast(c *gin.Context) {
 		maxD = minD + 20
 	}
 
+	b := models.Broadcast{TenantID: tid, AgentID: id, Message: message, Status: "pending"}
+
+	// Lampiran opsional (gambar/file) untuk semua penerima.
+	if fh, err := c.FormFile("file"); err == nil {
+		if f, ferr := fh.Open(); ferr == nil {
+			defer f.Close()
+			data, _ := io.ReadAll(f)
+			b.Mimetype = fh.Header.Get("Content-Type")
+			if b.Mimetype == "" {
+				b.Mimetype = "application/octet-stream"
+			}
+			b.FileName = fh.Filename
+			b.MediaType = "document"
+			if strings.HasPrefix(b.Mimetype, "image/") {
+				b.MediaType = "image"
+			}
+			b.MediaPath = storeMedia(id, data, b.Mimetype, fh.Filename)
+		}
+	}
+
 	// Normalisasi + dedupe penerima.
 	seen := map[string]bool{}
-	b := models.Broadcast{TenantID: tid, AgentID: id, Message: req.Message, Status: "pending"}
 	var recipients []models.BroadcastRecipient
-	for _, r := range req.Recipients {
+	for _, r := range reqRecipients {
 		num := services.NormalizePhone(r.Number)
 		if num == "" || seen[num] {
 			continue
@@ -104,6 +128,11 @@ func CreateBroadcast(c *gin.Context) {
 	c.JSON(200, gin.H{"data": b})
 }
 
+// CleanupStuckBroadcasts menandai broadcast yang masih "running" saat server mati sebagai interrupted.
+func CleanupStuckBroadcasts() {
+	database.DB.Model(&models.Broadcast{}).Where("status = ?", "running").Update("status", "interrupted")
+}
+
 // runBroadcast mengirim pesan ke tiap penerima dengan jeda acak (anti-banned).
 func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 	database.DB.Model(&models.Broadcast{}).Where("id = ?", broadcastID).Update("status", "running")
@@ -112,6 +141,12 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 	database.DB.First(&b, broadcastID)
 	var recipients []models.BroadcastRecipient
 	database.DB.Where("broadcast_id = ? AND status = ?", broadcastID, "pending").Find(&recipients)
+
+	// Baca lampiran sekali saja (kalau ada), dipakai untuk semua penerima.
+	var mediaBytes []byte
+	if b.MediaType != "" && b.MediaPath != "" {
+		mediaBytes, _ = os.ReadFile(b.MediaPath)
+	}
 
 	dailyCap := config.EnvInt("BROADCAST_DAILY_CAP", 200)
 	sent, failed, skipped := 0, 0, 0
@@ -135,8 +170,17 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 		}
 
 		msg := personalize(b.Message, r.Name)
-		if err := services.WA(agentID).SendText(r.Number, msg); err != nil {
-			markRecipient(r.ID, "failed", err.Error())
+		var sendErr error
+		switch {
+		case b.MediaType == "image" && len(mediaBytes) > 0:
+			sendErr = services.WA(agentID).SendImage(r.Number, msg, b.Mimetype, mediaBytes)
+		case b.MediaType == "document" && len(mediaBytes) > 0:
+			sendErr = services.WA(agentID).SendDocument(r.Number, b.FileName, b.Mimetype, msg, mediaBytes)
+		default:
+			sendErr = services.WA(agentID).SendText(r.Number, msg)
+		}
+		if sendErr != nil {
+			markRecipient(r.ID, "failed", sendErr.Error())
 			failed++
 		} else {
 			now := time.Now()

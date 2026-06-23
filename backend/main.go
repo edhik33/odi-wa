@@ -25,6 +25,9 @@ func main() {
 	// Sambungkan ulang semua agent yang sudah ter-link.
 	go handlers.StartAgents()
 
+	// Tandai broadcast yang nyangkut "running" (server mati saat broadcast berjalan) sebagai interrupted.
+	handlers.CleanupStuckBroadcasts()
+
 	// Cek langganan tiap jam: expire yang habis & suspend sesi WA tenant non-aktif.
 	handlers.StartSubscriptionSweep(time.Hour)
 

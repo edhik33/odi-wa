@@ -402,8 +402,8 @@ func (w *waInstance) SendImage(toNumber, caption, mimetype string, data []byte) 
 	return err
 }
 
-// SendDocument mengunggah & mengirim file/dokumen ke nomor.
-func (w *waInstance) SendDocument(toNumber, fileName, mimetype string, data []byte) error {
+// SendDocument mengunggah & mengirim file/dokumen ke nomor (caption opsional).
+func (w *waInstance) SendDocument(toNumber, fileName, mimetype, caption string, data []byte) error {
 	w.mu.Lock()
 	client := w.client
 	w.mu.Unlock()
@@ -419,6 +419,7 @@ func (w *waInstance) SendDocument(toNumber, fileName, mimetype string, data []by
 		DocumentMessage: &waProto.DocumentMessage{
 			FileName:      proto.String(fileName),
 			Title:         proto.String(fileName),
+			Caption:       proto.String(caption),
 			Mimetype:      proto.String(mimetype),
 			URL:           proto.String(up.URL),
 			DirectPath:    proto.String(up.DirectPath),

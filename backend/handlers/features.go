@@ -211,7 +211,7 @@ func InboxSendMedia(c *gin.Context) {
 	if isImage {
 		sendErr = services.WA(id).SendImage(to, caption, mimetype, data)
 	} else {
-		sendErr = services.WA(id).SendDocument(to, fh.Filename, mimetype, data)
+		sendErr = services.WA(id).SendDocument(to, fh.Filename, mimetype, caption, data)
 	}
 	if sendErr != nil {
 		c.JSON(502, gin.H{"error": sendErr.Error()})
