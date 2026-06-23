@@ -528,6 +528,22 @@ func (w *waInstance) CheckNumbers(numbers []string) ([]NumberCheck, error) {
 	return out, nil
 }
 
+// LIDForPN mengembalikan LID (angka) untuk satu nomor telepon, bila whatsmeow punya pemetaannya.
+// Dipakai mencocokkan riwayat chat lama yang tersimpan sebagai LID, bukan nomor telepon.
+func (w *waInstance) LIDForPN(phone string) string {
+	w.mu.Lock()
+	client := w.client
+	w.mu.Unlock()
+	if client == nil || client.Store == nil {
+		return ""
+	}
+	lid, err := client.Store.LIDs.GetLIDForPN(context.Background(), types.NewJID(phone, types.DefaultUserServer))
+	if err != nil || lid.IsEmpty() {
+		return ""
+	}
+	return lid.User
+}
+
 // extractIncoming mengubah pesan WA jadi IncomingMessage (teks atau media yang sudah di-download).
 func (w *waInstance) extractIncoming(v *events.Message) (IncomingMessage, bool) {
 	m := v.Message

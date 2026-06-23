@@ -40,24 +40,39 @@ func CheckNumbers(c *gin.Context) {
 		c.JSON(502, gin.H{"error": err.Error()})
 		return
 	}
-	// Tandai kontak "hangat" = pernah chat dengan agent ini (basis penilaian risiko).
-	nums := make([]string, 0, len(res))
+	// Tandai kontak "hangat" = pernah ada percakapan tercatat dengan agent ini.
+	// Riwayat lama bisa tersimpan sebagai LID, bukan nomor telepon — jadi cocokkan keduanya.
+	keyByNumber := make(map[string][]string, len(res))
+	allKeys := make([]string, 0, len(res)*2)
 	for _, r := range res {
-		nums = append(nums, r.Number)
+		keys := []string{r.Number}
+		if lid := services.WA(id).LIDForPN(r.Number); lid != "" {
+			keys = append(keys, lid)
+		}
+		keyByNumber[r.Number] = keys
+		allKeys = append(allKeys, keys...)
 	}
-	warmSet := map[string]bool{}
-	if len(nums) > 0 {
+	warmKeySet := map[string]bool{}
+	if len(allKeys) > 0 {
 		var warm []string
 		database.DB.Model(&models.ChatHistory{}).
-			Where("agent_id = ? AND sender IN ?", id, nums).
+			Where("agent_id = ? AND sender IN ?", id, allKeys).
 			Distinct().Pluck("sender", &warm)
 		for _, w := range warm {
-			warmSet[w] = true
+			warmKeySet[w] = true
 		}
+	}
+	isWarm := func(number string) bool {
+		for _, k := range keyByNumber[number] {
+			if warmKeySet[k] {
+				return true
+			}
+		}
+		return false
 	}
 	data := make([]gin.H, 0, len(res))
 	for _, r := range res {
-		data = append(data, gin.H{"input": r.Input, "number": r.Number, "registered": r.Registered, "warm": warmSet[r.Number]})
+		data = append(data, gin.H{"input": r.Input, "number": r.Number, "registered": r.Registered, "warm": isWarm(r.Number)})
 	}
 	c.JSON(200, gin.H{
 		"data": data,
