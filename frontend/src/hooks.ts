@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, SavedContact, SavedContactsResp, Agent, KnowledgeItem, Handoff } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, SavedContact, SavedContactsResp, FollowUp, Agent, KnowledgeItem, Handoff } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -303,6 +303,44 @@ export function useCrmContactsExport(agentId: number) {
   return useMutation({
     mutationFn: async ({ q, tag }: { q: string; tag: string }) =>
       (await api.get(`/agents/${agentId}/crm/contacts`, { params: { q, tag, all: 1 } })).data.data as SavedContact[],
+  });
+}
+
+// ---- Follow-up (drip) ----
+
+export function useFollowUps(agentId: number) {
+  return useQuery<FollowUp[]>({
+    queryKey: ['follow-ups', agentId],
+    queryFn: async () => (await api.get(`/agents/${agentId}/follow-ups`)).data.data,
+    enabled: !!agentId,
+  });
+}
+
+export function useSaveFollowUp(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (fu: Partial<FollowUp>) =>
+      fu.id
+        ? (await api.put(`/agents/${agentId}/follow-ups/${fu.id}`, fu)).data
+        : (await api.post(`/agents/${agentId}/follow-ups`, fu)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['follow-ups', agentId] }),
+  });
+}
+
+export function useDeleteFollowUp(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (fid: number) => (await api.delete(`/agents/${agentId}/follow-ups/${fid}`)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['follow-ups', agentId] }),
+  });
+}
+
+export function useEnrollFollowUp(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ fid, recipients }: { fid: number; recipients: { number: string; name: string }[] }) =>
+      (await api.post(`/agents/${agentId}/follow-ups/${fid}/enroll`, { recipients })).data as { added: number; skipped: number },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['follow-ups', agentId] }),
   });
 }
 

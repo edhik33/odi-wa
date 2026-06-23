@@ -16,6 +16,7 @@ import CampaignIcon from '@mui/icons-material/CampaignOutlined';
 import CalendarIcon from '@mui/icons-material/CalendarMonthOutlined';
 import RuleIcon from '@mui/icons-material/RuleOutlined';
 import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
+import FollowUpIcon from '@mui/icons-material/ScheduleSendOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import { QRCodeSVG } from 'qrcode.react';
@@ -33,6 +34,7 @@ import CalendarPanel from '../components/CalendarPanel';
 import AutoReplyPanel from '../components/AutoReplyPanel';
 import TemplatePanel from '../components/TemplatePanel';
 import ContactsPanel from '../components/ContactsPanel';
+import FollowUpPanel from '../components/FollowUpPanel';
 import PageHeader from '../components/PageHeader';
 import {
   useAgents, useAgentStatuses, useAgentStatus, useAgentKnowledge,
@@ -58,6 +60,7 @@ const NAV_ITEMS = [
   { id: 'kalender', label: 'Kalender', icon: <CalendarIcon fontSize="small" /> },
   { id: 'auto-reply', label: 'Auto-Reply', icon: <RuleIcon fontSize="small" /> },
   { id: 'template', label: 'Template', icon: <TemplateIcon fontSize="small" /> },
+  { id: 'follow-up', label: 'Follow-up', icon: <FollowUpIcon fontSize="small" /> },
   { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
   { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
 ];
@@ -597,6 +600,7 @@ export default function Dashboard() {
         {tab === 'kalender' && <CalendarPanel agentId={agentId} />}
         {tab === 'auto-reply' && <AutoReplyPanel agentId={agentId} />}
         {tab === 'template' && <TemplatePanel agentId={agentId} />}
+        {tab === 'follow-up' && <FollowUpPanel agentId={agentId} />}
         {tab === 'kontak' && (
           <ContactsPanel agentId={agentId}
             onBroadcast={(recipients) => { setSeed({ kind: 'broadcast', value: recipients, n: Date.now() }); setTab('broadcast'); }}

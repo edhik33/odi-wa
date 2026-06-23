@@ -158,6 +158,22 @@ export interface SavedContactsResp {
   all_tags: string[];
 }
 
+export interface FollowUpStep {
+  id?: number;
+  step_order?: number;
+  delay_hours: number;
+  message: string;
+}
+
+export interface FollowUp {
+  id: number;
+  name: string;
+  enabled: boolean;
+  stop_on_reply: boolean;
+  steps: FollowUpStep[];
+  counts: { active: number; completed: number; stopped: number };
+}
+
 export interface WAGroup {
   jid: string;
   name: string;

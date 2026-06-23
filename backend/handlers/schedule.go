@@ -120,13 +120,16 @@ func CancelSchedule(c *gin.Context) {
 	c.JSON(200, gin.H{"ok": true})
 }
 
-// StartScheduler mengecek jadwal yang jatuh tempo tiap menit & menjalankannya.
+// StartScheduler mengecek jadwal & follow-up yang jatuh tempo tiap menit & menjalankannya.
 func StartScheduler() {
 	go func() {
 		processDueSchedules()
+		go processDueFollowUps()
 		t := time.NewTicker(1 * time.Minute)
 		for range t.C {
 			processDueSchedules()
+			// Follow-up dijalankan terpisah (bisa menyelipkan jeda antar kirim) agar tak menahan jadwal.
+			go processDueFollowUps()
 		}
 	}()
 }
