@@ -112,7 +112,8 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const coldCount = registered.length - warmCount;
   const batch = registered.length;
   const cap = summary?.daily_cap ?? 200;
-  const remaining = Math.max(0, cap - (summary?.sent_today ?? 0));
+  const sentToday = summary?.sent_today ?? 0;
+  const remaining = Math.max(0, cap - sentToday);
   const coldRatio = batch ? coldCount / batch : 0;
   const unregRatio = total ? unreg / total : 0;
   const pct = (r: number) => `${Math.round(r * 100)}%`;
@@ -336,7 +337,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                 {unreg > 0 && <Chip size="small" label={`${unreg} tak terdaftar`} color="default" variant="outlined" />}
                 <Chip size="small" label={`${warmCount} hangat`} color="success" variant="outlined" />
                 <Chip size="small" label={`${coldCount} dingin`} color={coldCount ? 'warning' : 'default'} variant="outlined" />
-                <Chip size="small" label={`Sisa jatah hari ini ${remaining}/${cap}`} variant="outlined" />
+                <Chip size="small" label={`Terkirim hari ini ${sentToday}/${cap}`} variant="outlined" color={remaining === 0 ? 'warning' : 'default'} />
               </Stack>
 
               {unreg > 0 && (
@@ -355,7 +356,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
               )}
 
               <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 1 }}>
-                Yang dikirimi cuma nomor terdaftar. {file && <>Ada lampiran <b>{file.name}</b>. </>}Antar pesan dikasih jeda {minDelay} sampai {maxDelay} detik biar lebih aman. Penilaian ini bantu menurunkan risiko, bukan jaminan ya.
+                Yang dikirimi cuma nomor terdaftar. {file && <>Ada lampiran <b>{file.name}</b>. </>}Antar pesan dikasih jeda {minDelay} sampai {maxDelay} detik biar lebih aman. Jatah harian reset tiap tengah malam. Penilaian ini bantu menurunkan risiko, bukan jaminan ya.
               </Typography>
 
               {level === 'red' && (
