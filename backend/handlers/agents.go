@@ -120,6 +120,15 @@ func OnWAMessage(agentID uint, sender types.JID, in services.IncomingMessage) {
 	}
 	send := func(text string) { _ = services.WA(agentID).SendMessage(sender, text) }
 
+	// 0. Permintaan berhenti (opt-out) -> catat agar tidak ikut broadcast lagi, lalu konfirmasi.
+	if in.Text != "" && isOptOutKeyword(in.Text) {
+		database.DB.Where(models.OptOut{AgentID: agentID, Sender: num}).FirstOrCreate(&models.OptOut{AgentID: agentID, Sender: num})
+		ack := "Baik kak 🙏 nomor ini tidak akan kami kirimi pesan promosi lagi. Terima kasih."
+		send(ack)
+		logRow(in.Text, ack)
+		return
+	}
+
 	// 1. Kontak sedang diambil alih manusia -> bot diam, catat pesan masuk untuk inbox.
 	var ho models.Handoff
 	if database.DB.Where("agent_id = ? AND sender = ?", agentID, num).First(&ho).Error == nil {

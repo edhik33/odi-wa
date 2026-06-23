@@ -17,6 +17,7 @@ import BillingPanel from '../components/BillingPanel';
 import InboxPanel from '../components/InboxPanel';
 import TestChatPanel from '../components/TestChatPanel';
 import AnalyticsPanel from '../components/AnalyticsPanel';
+import BroadcastPanel from '../components/BroadcastPanel';
 
 const TONES = [
   { value: 'ramah', label: '😊 Ramah' },
@@ -178,7 +179,7 @@ export default function Dashboard() {
   const dotColor = (s?: string) => (s === 'connected' ? '#25D366' : s === 'qr' ? '#ffa726' : '#bdbdbd');
 
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
-  const tabs = ['Dashboard', 'Inbox', 'Coba Chat', 'Knowledge Base', 'Analitik', 'Settings', 'Langganan'];
+  const tabs = ['Dashboard', 'Inbox', 'Coba Chat', 'Knowledge Base', 'Analitik', 'Broadcast', 'Settings', 'Langganan'];
   const sc = status === 'connected' ? 'success' : status === 'qr' ? 'warning' : 'error';
   const sl = status === 'connected' ? 'Online' : status === 'qr' ? 'Scan QR' : 'Offline';
   const currentAgent = agents.find(a => a.id === agentId);
@@ -352,7 +353,7 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 5 && (
+        {tab === 6 && (
           <Box>
             <Typography variant="h5" sx={{ fontWeight: 800, mb: 3 }}>
               <SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />Pengaturan {currentAgent && <Typography component="span" color="text.secondary">· {currentAgent.name}</Typography>}
@@ -422,10 +423,11 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 6 && <BillingPanel />}
+        {tab === 7 && <BillingPanel />}
         {tab === 1 && <InboxPanel agentId={agentId} />}
         {tab === 2 && <TestChatPanel agentId={agentId} />}
         {tab === 4 && <AnalyticsPanel agentId={agentId} />}
+        {tab === 5 && <BroadcastPanel agentId={agentId} />}
       </Box>
     </Box>
   );

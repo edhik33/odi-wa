@@ -96,6 +96,23 @@ export interface Analytics {
   trend: { day: string; count: number }[];
 }
 
+export interface NumberCheck {
+  input: string;
+  number: string;
+  registered: boolean;
+}
+
+export interface Broadcast {
+  id: number;
+  message: string;
+  status: string; // pending, running, done, failed
+  total: number;
+  sent: number;
+  failed: number;
+  skipped: number;
+  created_at: string;
+}
+
 export interface User {
   id: number;
   name: string;

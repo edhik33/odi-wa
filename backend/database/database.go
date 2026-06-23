@@ -41,6 +41,7 @@ func Init() {
 		&models.User{}, &models.Agent{}, &models.ChatHistory{}, &models.Setting{},
 		&models.Knowledge{}, &models.Handoff{},
 		&models.Plan{}, &models.Tenant{}, &models.Subscription{}, &models.Invoice{}, &models.AIUsage{},
+		&models.Broadcast{}, &models.BroadcastRecipient{}, &models.OptOut{},
 	)
 
 	seedPlans()

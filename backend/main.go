@@ -102,6 +102,9 @@ func main() {
 			auth.GET("/agents/:id/conversation", handlers.InboxConversation)
 			auth.POST("/agents/:id/send", handlers.InboxSend)
 			auth.POST("/agents/:id/send-media", handlers.InboxSendMedia)
+			auth.POST("/agents/:id/check-numbers", handlers.CheckNumbers)
+			auth.POST("/agents/:id/broadcast", handlers.CreateBroadcast)
+			auth.GET("/agents/:id/broadcasts", handlers.ListBroadcasts)
 		}
 	}
 

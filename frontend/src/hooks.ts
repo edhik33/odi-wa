@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, NumberCheck, Broadcast } from './types';
 
 // ---- Tenant ----
 
@@ -159,6 +159,33 @@ export function useResumeBot(agentId: number) {
       qc.invalidateQueries({ queryKey: ['conversation', agentId, sender] });
       qc.invalidateQueries({ queryKey: ['contacts', agentId] });
     },
+  });
+}
+
+// ---- Broadcast ----
+
+export function useCheckNumbers(agentId: number) {
+  return useMutation({
+    mutationFn: async (numbers: string[]) =>
+      (await api.post(`/agents/${agentId}/check-numbers`, { numbers })).data.data as NumberCheck[],
+  });
+}
+
+export function useBroadcasts(agentId: number) {
+  return useQuery<Broadcast[]>({
+    queryKey: ['broadcasts', agentId],
+    queryFn: async () => (await api.get(`/agents/${agentId}/broadcasts`)).data.data,
+    enabled: !!agentId,
+    refetchInterval: 4000,
+  });
+}
+
+export function useCreateBroadcast(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { message: string; recipients: { number: string; name: string }[]; min_delay: number; max_delay: number }) =>
+      (await api.post(`/agents/${agentId}/broadcast`, body)).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['broadcasts', agentId] }),
   });
 }
 

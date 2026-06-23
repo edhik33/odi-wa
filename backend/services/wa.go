@@ -6,6 +6,7 @@ import (
 	"log"
 	"math/rand"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -257,6 +258,66 @@ func (w *waInstance) Logout() error {
 // SendText mengirim pesan ke nomor bare (mis "628123") tanpa pemanggil perlu menyusun JID.
 func (w *waInstance) SendText(toNumber, message string) error {
 	return w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message)
+}
+
+// NormalizePhone membersihkan nomor jadi format digit internasional (mis. "08.." -> "628..").
+func NormalizePhone(s string) string {
+	var b strings.Builder
+	for _, r := range s {
+		if r >= '0' && r <= '9' {
+			b.WriteRune(r)
+		}
+	}
+	d := b.String()
+	switch {
+	case d == "":
+		return ""
+	case strings.HasPrefix(d, "0"):
+		return "62" + d[1:]
+	case strings.HasPrefix(d, "8"): // nomor lokal tanpa awalan 0/62
+		return "62" + d
+	default:
+		return d
+	}
+}
+
+// NumberCheck = hasil pengecekan satu nomor di WhatsApp.
+type NumberCheck struct {
+	Input      string `json:"input"`
+	Number     string `json:"number"` // nomor ternormalisasi untuk dikirim
+	Registered bool   `json:"registered"`
+}
+
+// CheckNumbers memeriksa daftar nomor apakah terdaftar di WhatsApp (IsOnWhatsApp).
+func (w *waInstance) CheckNumbers(numbers []string) ([]NumberCheck, error) {
+	w.mu.Lock()
+	client := w.client
+	w.mu.Unlock()
+	if client == nil || !client.IsConnected() {
+		return nil, fmt.Errorf("client WA tidak terhubung")
+	}
+	queries := make([]string, 0, len(numbers))
+	for _, n := range numbers {
+		if d := NormalizePhone(n); d != "" {
+			queries = append(queries, "+"+d)
+		}
+	}
+	if len(queries) == 0 {
+		return nil, nil
+	}
+	resp, err := client.IsOnWhatsApp(context.Background(), queries)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]NumberCheck, 0, len(resp))
+	for _, r := range resp {
+		num := strings.TrimPrefix(r.Query, "+")
+		if r.IsIn && r.JID.User != "" {
+			num = r.JID.User
+		}
+		out = append(out, NumberCheck{Input: r.Query, Number: num, Registered: r.IsIn})
+	}
+	return out, nil
 }
 
 // extractIncoming mengubah pesan WA jadi IncomingMessage (teks atau media yang sudah di-download).
