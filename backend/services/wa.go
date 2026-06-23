@@ -198,7 +198,13 @@ func (w *waInstance) handleEvent(evt interface{}) {
 			}
 		}
 		if text != "" && onMessage != nil {
-			go onMessage(w.agentID, v.Info.Sender, text)
+			// Kontak modern bisa beralamat LID (privasi). Pakai nomor telepon asli (SenderAlt)
+			// agar yang tersimpan & ditampilkan adalah nomor WA betulan, bukan angka LID.
+			contact := v.Info.Sender
+			if contact.Server == types.HiddenUserServer && !v.Info.SenderAlt.IsEmpty() {
+				contact = v.Info.SenderAlt
+			}
+			go onMessage(w.agentID, contact, text)
 		}
 	}
 }

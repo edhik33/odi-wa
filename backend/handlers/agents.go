@@ -104,14 +104,21 @@ func OnWAMessage(agentID uint, sender types.JID, msg string) {
 		return
 	}
 
-	// Di luar jam kerja -> kirim pesan away, jangan panggil AI.
+	// Di luar jam kerja -> kirim pesan away (sekali), jangan panggil AI.
 	if !withinBusinessHours(agent) {
 		away := agent.AwayMessage
 		if away == "" {
 			away = "Mohon maaf, saat ini di luar jam operasional. Pesan kakak sudah kami terima dan akan kami balas pada jam kerja ya 🙏"
 		}
-		_ = services.WA(agentID).SendMessage(sender, away)
-		logTurn(agentID, num, msg, away, false)
+		// Jangan ulang pesan away kalau balasan terakhir ke kontak ini sudah pesan away.
+		var last models.ChatHistory
+		database.DB.Where("agent_id = ? AND sender = ?", agentID, num).Order("created_at desc").First(&last)
+		if last.Reply != away {
+			_ = services.WA(agentID).SendMessage(sender, away)
+			logTurn(agentID, num, msg, away, false)
+		} else {
+			logInbound(agentID, num, msg) // tetap catat pesan masuk untuk inbox
+		}
 		return
 	}
 

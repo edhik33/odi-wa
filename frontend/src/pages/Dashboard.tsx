@@ -396,7 +396,7 @@ export default function Dashboard() {
 
                 <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Jam Kerja</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                  Di luar jam ini bot tidak menjawab otomatis, hanya mengirim pesan di luar jam kerja.
+                  Di luar jam kerja, bot tidak menjawab pakai AI. Pelanggan hanya menerima pesan otomatis di bawah (sekali), dan pesannya tetap masuk ke Inbox untuk kamu balas nanti.
                 </Typography>
                 <FormControlLabel control={<Switch checked={bhEnabled} onChange={e => setBhEnabled(e.target.checked)} />} label="Batasi jam kerja" />
                 <Stack direction="row" spacing={2} sx={{ my: 1 }}>
