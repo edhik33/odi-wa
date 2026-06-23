@@ -283,7 +283,20 @@ func (w *waInstance) GetQR() string {
 func (w *waInstance) GetStatus() string {
 	w.mu.Lock()
 	defer w.mu.Unlock()
+	// Kalau cache bilang "connected" tapi socket sebenarnya turun, laporkan "connecting"
+	// supaya dashboard tidak menipu "Online" padahal tidak bisa kirim.
+	if w.status == "connected" && (w.client == nil || !w.client.IsConnected()) {
+		return "connecting"
+	}
 	return w.status
+}
+
+// IsConnected melaporkan apakah socket WA benar-benar hidup & ter-login (bukan sekadar
+// status cache). Dipakai broadcast: w.status bisa basi "connected" walau koneksi sudah turun.
+func (w *waInstance) IsConnected() bool {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.client != nil && w.client.IsConnected() && w.client.IsLoggedIn()
 }
 
 // GetInfo mengembalikan nomor & nama profil WhatsApp yang sedang terhubung.

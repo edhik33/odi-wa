@@ -77,7 +77,7 @@ func Groups(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if services.WA(id).GetStatus() != "connected" {
+	if !services.WA(id).IsConnected() {
 		c.JSON(400, gin.H{"error": "WhatsApp belum tersambung"})
 		return
 	}

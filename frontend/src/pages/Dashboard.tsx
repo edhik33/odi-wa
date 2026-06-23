@@ -209,11 +209,11 @@ export default function Dashboard() {
     }
   };
 
-  const dotColor = (s?: string) => (s === 'connected' ? '#25D366' : s === 'qr' ? '#ffa726' : '#bdbdbd');
+  const dotColor = (s?: string) => (s === 'connected' ? '#25D366' : s === 'qr' || s === 'connecting' ? '#ffa726' : '#bdbdbd');
 
   const logout = () => { localStorage.clear(); window.location.href = '/login'; };
-  const sc = status === 'connected' ? 'success' : status === 'qr' ? 'warning' : 'error';
-  const sl = status === 'connected' ? 'Online' : status === 'qr' ? 'Scan QR' : 'Offline';
+  const sc = status === 'connected' ? 'success' : status === 'qr' || status === 'connecting' ? 'warning' : 'error';
+  const sl = status === 'connected' ? 'Online' : status === 'connecting' ? 'Menyambung…' : status === 'qr' ? 'Scan QR' : 'Offline';
   const currentAgent = agents.find(a => a.id === agentId);
 
   return (

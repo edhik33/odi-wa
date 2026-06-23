@@ -31,7 +31,7 @@ func CheckNumbers(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Daftar nomor kosong"})
 		return
 	}
-	if services.WA(id).GetStatus() != "connected" {
+	if !services.WA(id).IsConnected() {
 		c.JSON(400, gin.H{"error": "WhatsApp belum tersambung"})
 		return
 	}
@@ -64,7 +64,7 @@ func CreateBroadcast(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Penerima wajib diisi"})
 		return
 	}
-	if services.WA(id).GetStatus() != "connected" {
+	if !services.WA(id).IsConnected() {
 		c.JSON(400, gin.H{"error": "WhatsApp belum tersambung"})
 		return
 	}
@@ -147,7 +147,7 @@ func ResumeBroadcasts() {
 // resumeBroadcast menunggu WA agent tersambung (maks ~90 detik) lalu melanjutkan pengiriman.
 func resumeBroadcast(broadcastID, agentID uint) {
 	for i := 0; i < 18; i++ {
-		if services.WA(agentID).GetStatus() == "connected" {
+		if services.WA(agentID).IsConnected() {
 			log.Printf("Melanjutkan broadcast %d (agent %d)", broadcastID, agentID)
 			runBroadcast(broadcastID, agentID, 10, 30) // delay default (min/max tidak dipersistensikan)
 			return
@@ -181,6 +181,15 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 	daily := int(dailySentCount(agentID))
 
 	for i, r := range recipients {
+		// Pastikan WA tersambung; tunggu reconnect otomatis hingga ~60 detik. Kalau tetap putus,
+		// JEDA broadcast (status interrupted) — sisa penerima tetap "pending" agar bisa dilanjutkan,
+		// bukan ditandai gagal massal yang menyesatkan.
+		if !waitConnected(agentID, 60*time.Second) {
+			database.DB.Model(&models.Broadcast{}).Where("id = ?", broadcastID).
+				Updates(map[string]any{"status": "interrupted", "sent": sent, "failed": failed, "skipped": skipped})
+			log.Printf("Broadcast %d dijeda: WA agent %d terputus (%d terkirim, sisa tetap pending)", broadcastID, agentID, sent)
+			return
+		}
 		// Segarkan daftar opt-out berkala agar pelanggan yang baru kirim STOP di tengah jalan tetap dihormati.
 		if i > 0 && i%25 == 0 {
 			optedOut = optedOutSet(agentID)
@@ -211,6 +220,14 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 			sendErr = services.WA(agentID).SendText(r.Number, msg)
 		}
 		if sendErr != nil {
+			// Error karena koneksi putus saat kirim -> jeda broadcast, JANGAN tandai gagal
+			// (penerima tetap pending agar bisa dilanjutkan saat WA tersambung lagi).
+			if strings.Contains(sendErr.Error(), "tidak terhubung") {
+				database.DB.Model(&models.Broadcast{}).Where("id = ?", broadcastID).
+					Updates(map[string]any{"status": "interrupted", "sent": sent, "failed": failed, "skipped": skipped})
+				log.Printf("Broadcast %d dijeda saat kirim ke %s: WA terputus", broadcastID, r.Number)
+				return
+			}
 			markRecipient(r.ID, "failed", sendErr.Error())
 			failed++
 		} else {
@@ -232,9 +249,28 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 		}
 	}
 
+	// Status akhir jujur: kalau tidak ada satu pun terkirim & ada yang gagal, ini "failed", bukan "done".
+	finalStatus := "done"
+	if sent == 0 && failed > 0 {
+		finalStatus = "failed"
+	}
 	database.DB.Model(&models.Broadcast{}).Where("id = ?", broadcastID).
-		Updates(map[string]any{"status": "done", "sent": sent, "failed": failed, "skipped": skipped})
-	log.Printf("Broadcast %d selesai: %d terkirim, %d gagal, %d dilewati", broadcastID, sent, failed, skipped)
+		Updates(map[string]any{"status": finalStatus, "sent": sent, "failed": failed, "skipped": skipped})
+	log.Printf("Broadcast %d %s: %d terkirim, %d gagal, %d dilewati", broadcastID, finalStatus, sent, failed, skipped)
+}
+
+// waitConnected menunggu socket WA agent benar-benar tersambung hingga max durasi (poll tiap 3 detik).
+func waitConnected(agentID uint, max time.Duration) bool {
+	deadline := time.Now().Add(max)
+	for {
+		if services.WA(agentID).IsConnected() {
+			return true
+		}
+		if time.Now().After(deadline) {
+			return false
+		}
+		time.Sleep(3 * time.Second)
+	}
 }
 
 func markRecipient(id uint, status, errMsg string) {
@@ -378,7 +414,7 @@ func WAContacts(c *gin.Context) {
 	if !ok {
 		return
 	}
-	if services.WA(id).GetStatus() != "connected" {
+	if !services.WA(id).IsConnected() {
 		c.JSON(400, gin.H{"error": "WhatsApp belum tersambung"})
 		return
 	}
