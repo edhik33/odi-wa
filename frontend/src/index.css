@@ -46,6 +46,9 @@ code {
 }
 
 /* SweetAlert2 — selaras dengan tema app */
+.swal2-container {
+  z-index: 20000 !important;
+}
 .swal2-popup {
   font-family: Inter, Roboto, system-ui, sans-serif;
   border-radius: 10px;

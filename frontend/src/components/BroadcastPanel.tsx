@@ -23,7 +23,7 @@ function normalizePhone(s: string): string {
 }
 
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
-  done: 'success', running: 'warning', pending: 'default', interrupted: 'error',
+  done: 'success', running: 'warning', pending: 'default', failed: 'error', interrupted: 'error',
 };
 const RCP_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   sent: 'success', failed: 'error', skipped: 'default', pending: 'warning',

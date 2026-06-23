@@ -106,7 +106,7 @@ export interface NumberCheck {
 export interface Broadcast {
   id: number;
   message: string;
-  status: string; // pending, running, done, interrupted
+  status: string; // pending, running, done, failed, interrupted
   total: number;
   sent: number;
   failed: number;
@@ -154,7 +154,8 @@ export interface ScheduledMessage {
   recipient_count: number;
   media_type: string;
   file_name: string;
-  status: string; // scheduled, done, cancelled, interrupted
+  status: string; // scheduled, running, done, failed, cancelled, interrupted
+  broadcast_id?: number | null;
 }
 
 export function normalizePhone(s: string): string {
