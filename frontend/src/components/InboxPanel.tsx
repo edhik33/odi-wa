@@ -7,6 +7,7 @@ import SendIcon from '@mui/icons-material/Send';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
+import ReplyIcon from '@mui/icons-material/Reply';
 import { useContacts, useConversation, useSendMessage, useSendMedia, useSendTyping, useResumeBot } from '../hooks';
 import PageHeader from './PageHeader';
 import TemplatePicker from './TemplatePicker';
@@ -26,8 +27,9 @@ function fmtTime(ts?: string) {
   return new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
-function Bubble({ side, bg, color, tag, time, name, children }: {
-  side: 'left' | 'right'; bg: string; color?: string; tag?: string; time?: string; name?: string; children: React.ReactNode;
+function Bubble({ side, bg, color, tag, time, name, onReply, children }: {
+  side: 'left' | 'right'; bg: string; color?: string; tag?: string; time?: string; name?: string;
+  onReply?: () => void; children: React.ReactNode;
 }) {
   const isLeft = side === 'left';
   const initial = name ? name.charAt(0).toUpperCase() : (tag === 'CS' ? 'CS' : '?');
@@ -68,6 +70,12 @@ function Bubble({ side, bg, color, tag, time, name, children }: {
           {children}
         </Box>
 
+        {/* Reply button */}
+        <IconButton size="small" onClick={onReply}
+          sx={{ opacity: 0, transition: 'opacity 0.15s', '.MuiBox-root:hover &': { opacity: 1 }, alignSelf: 'flex-end', mt: -0.5 }}>
+          <ReplyIcon sx={{ fontSize: 14 }} />
+        </IconButton>
+
         {/* Timestamp */}
         {time && (
           <Typography variant="caption" color="text.disabled" sx={{
@@ -107,6 +115,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
   const resumeBot = useResumeBot(agentId);
   const typingTimer = useRef<ReturnType<typeof setTimeout>>();
   const [text, setText] = useState('');
+  const [replyTo, setReplyTo] = useState<{ id: string; text: string } | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -157,7 +166,8 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
     const m = text.trim();
     if (!m) return;
     setText('');
-    await sendMsg.mutateAsync({ to: sender, message: m });
+    await sendMsg.mutateAsync({ to: sender, message: m, reply_to: replyTo?.id || '' } as any);
+    setReplyTo(null);
   };
 
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
@@ -221,7 +231,8 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                   <Box key={m.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     {/* Pesan dari pelanggan (kiri) */}
                     {(m.message || (m.media_type && !m.from_human)) && (
-                      <Bubble side="left" bg="#fff" time={fmtTime(m.created_at)} name={selectedName || sender}>
+                      <Bubble side="left" bg="#fff" time={fmtTime(m.created_at)} name={selectedName || sender}
+                        onReply={() => setReplyTo({ id: String(m.id), text: m.message || '📷 Media' })}>
                         {m.media_type && !m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.message && <span>{m.message}</span>}
                       </Bubble>
@@ -234,6 +245,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                         color={m.from_human ? '#fff' : 'inherit'}
                         tag={m.from_human ? 'CS' : 'Bot'}
                         time={fmtTime(m.created_at)}
+                        onReply={() => setReplyTo({ id: String(m.id), text: m.reply || m.message || '📷 Media' })}
                       >
                         {m.media_type && m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.reply && <span>{m.reply}</span>}
@@ -246,6 +258,15 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                 <div ref={bottomRef} />
               </Box>
               <Divider />
+              {/* Reply quote bar */}
+              {replyTo && (
+                <Stack direction="row" sx={{ px: 1.25, pt: 1, alignItems: 'center', gap: 1, bgcolor: '#f0f4f0', borderLeft: '3px solid', borderColor: 'primary.main' }}>
+                  <Typography variant="caption" color="text.secondary" sx={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    Balas: {replyTo.text.slice(0, 80)}{replyTo.text.length > 80 ? '…' : ''}
+                  </Typography>
+                  <IconButton size="small" onClick={() => setReplyTo(null)}><CloseIcon sx={{ fontSize: 16 }} /></IconButton>
+                </Stack>
+              )}
               {file && (
                 <Stack direction="row" sx={{ px: 1.25, pt: 1, alignItems: 'center', gap: 1 }}>
                   <Chip label={`📎 ${file.name}`} size="small" onDelete={() => { setFile(null); if (fileInput.current) fileInput.current.value = ''; }} deleteIcon={<CloseIcon />} />
