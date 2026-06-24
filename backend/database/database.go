@@ -1,9 +1,11 @@
 package database
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/models"
@@ -30,10 +32,16 @@ func Init() {
 	// Buat database-nya kalau belum ada (connect tanpa nama DB dulu).
 	rootDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port)
 	if rootDB, err := gorm.Open(mysql.Open(rootDSN), &gorm.Config{}); err == nil {
-		rootDB.Exec("CREATE DATABASE IF NOT EXISTS `" + name + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci")
-		if sqlDB, e := rootDB.DB(); e == nil {
-			sqlDB.Close()
+		if err := rootDB.Exec("CREATE DATABASE IF NOT EXISTS `" + name + "` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci").Error; err != nil {
+			log.Fatal("DB create database error: ", err)
 		}
+		if sqlDB, e := rootDB.DB(); e == nil {
+			if err := sqlDB.Close(); err != nil {
+				log.Printf("DB root close warning: %v", err)
+			}
+		}
+	} else {
+		log.Printf("DB root connection warning: %v", err)
 	}
 
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port, name)
@@ -49,9 +57,11 @@ func Init() {
 		sqlDB.SetMaxOpenConns(config.EnvInt("DB_MAX_OPEN_CONNS", 25))
 		sqlDB.SetMaxIdleConns(config.EnvInt("DB_MAX_IDLE_CONNS", 5))
 		sqlDB.SetConnMaxLifetime(time.Duration(config.EnvInt("DB_CONN_MAX_LIFETIME_MIN", 30)) * time.Minute)
+	} else {
+		log.Fatal("DB pool error: ", e)
 	}
 
-	DB.AutoMigrate(
+	if err := DB.AutoMigrate(
 		&models.User{}, &models.Agent{}, &models.ChatHistory{}, &models.Setting{},
 		&models.Knowledge{}, &models.Handoff{}, &models.Contact{},
 		&models.Plan{}, &models.Tenant{}, &models.Subscription{}, &models.Invoice{}, &models.AIUsage{},
@@ -60,11 +70,19 @@ func Init() {
 		&models.Template{},
 		&models.FollowUp{}, &models.FollowUpStep{}, &models.FollowUpEnrollment{},
 		&models.AppSetting{},
-	)
+	).Error; err != nil {
+		log.Fatal("DB migration error: ", err)
+	}
 
-	seedPlans()
-	seedSuperAdmin()
-	migrateLegacyTenant()
+	if err := seedPlans(); err != nil {
+		log.Fatal("DB seed plans error: ", err)
+	}
+	if err := seedSuperAdmin(); err != nil {
+		log.Fatal("DB seed super admin error: ", err)
+	}
+	if err := migrateLegacyTenant(); err != nil {
+		log.Fatal("DB legacy tenant migration error: ", err)
+	}
 
 	log.Println("Database ready")
 }
@@ -84,119 +102,201 @@ func validDBName(s string) bool {
 	return true
 }
 
+func isUnsafeDefaultCredential(v string) bool {
+	v = strings.TrimSpace(strings.ToLower(v))
+	switch v {
+	case "", "admin123", "superadmin123", "password", "changeme", "change-me", "secret", "wa-assistant-secret-change-me", "ganti_dengan_string_acak_min_32_char":
+		return true
+	default:
+		return false
+	}
+}
+
+func validateAdminPassword(envKey, password string) error {
+	if isUnsafeDefaultCredential(password) || len(password) < 12 {
+		return fmt.Errorf("%s tidak aman; set minimal 12 karakter dan jangan gunakan default password", envKey)
+	}
+	return nil
+}
+
 // seedPlans mengisi paket langganan awal (idempoten).
-func seedPlans() {
+func seedPlans() error {
 	var n int64
-	DB.Model(&models.Plan{}).Count(&n)
+	if err := DB.Model(&models.Plan{}).Count(&n).Error; err != nil {
+		return err
+	}
 	if n > 0 {
-		return
+		return nil
 	}
 	plans := []models.Plan{
 		{Code: "starter", Name: "Starter", Description: "1 nomor WhatsApp, cocok untuk mulai.", Price: 99000, BillingPeriod: "monthly", MaxNumbers: 1, MaxAIRepliesMonthly: 1000, SortOrder: 1},
 		{Code: "growth", Name: "Growth", Description: "3 nomor, untuk tim yang berkembang.", Price: 249000, BillingPeriod: "monthly", MaxNumbers: 3, MaxAIRepliesMonthly: 5000, IsPopular: true, SortOrder: 2},
 		{Code: "pro", Name: "Pro", Description: "10 nomor, untuk bisnis serius.", Price: 699000, BillingPeriod: "monthly", MaxNumbers: 10, MaxAIRepliesMonthly: 20000, SortOrder: 3},
 	}
-	DB.Create(&plans)
+	if err := DB.Create(&plans).Error; err != nil {
+		return err
+	}
 	log.Println("Seeder: plans dibuat (starter, growth, pro)")
+	return nil
 }
 
 // seedSuperAdmin memastikan ada satu operator platform (login ke /admin).
-func seedSuperAdmin() {
+func seedSuperAdmin() error {
 	var n int64
-	DB.Model(&models.User{}).Where("is_super_admin = ?", true).Count(&n)
-	if n > 0 {
-		syncSuperAdminPassword() // jaga password/username super-admin sinkron dengan env
-		return
+	if err := DB.Model(&models.User{}).Where("is_super_admin = ?", true).Count(&n).Error; err != nil {
+		return err
 	}
-	username := config.Env("SUPERADMIN_USERNAME", "superadmin")
-	password := config.Env("SUPERADMIN_PASSWORD", "superadmin123")
-	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
-	DB.Create(&models.User{
+	if n > 0 {
+		return syncSuperAdminPassword() // jaga password/username super-admin sinkron dengan env
+	}
+	username := config.EnvRequired("SUPERADMIN_USERNAME")
+	password := config.EnvRequired("SUPERADMIN_PASSWORD")
+	if err := validateAdminPassword("SUPERADMIN_PASSWORD", password); err != nil {
+		return err
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := DB.Create(&models.User{
 		Name: "Super Admin", Username: username, Email: "super@wa-assistant.local",
 		Password: string(hash), IsSuperAdmin: true, Role: "admin",
-	})
+	}).Error; err != nil {
+		return err
+	}
 	log.Printf("Seeder: super admin '%s' dibuat", username)
+	return nil
 }
 
 // syncSuperAdminPassword memperbarui kredensial super-admin agar cocok dengan env
 // SUPERADMIN_PASSWORD / SUPERADMIN_USERNAME (kalau diisi). Cara aman ganti password
 // super-admin TANPA lewat chat: set SUPERADMIN_PASSWORD di .env lalu restart service.
 // Kalau env kosong, kredensial yang ada dibiarkan apa adanya.
-func syncSuperAdminPassword() {
+func syncSuperAdminPassword() error {
 	pw := os.Getenv("SUPERADMIN_PASSWORD")
 	if pw == "" {
-		return
+		return nil
+	}
+	if err := validateAdminPassword("SUPERADMIN_PASSWORD", pw); err != nil {
+		return err
 	}
 	username := config.Env("SUPERADMIN_USERNAME", "superadmin")
 	var u models.User
-	if DB.Where("is_super_admin = ?", true).First(&u).Error != nil {
-		return
+	if err := DB.Where("is_super_admin = ?", true).First(&u).Error; err != nil {
+		return err
 	}
 	// Sudah cocok → cukup pastikan username sinkron (hindari re-hash tiap restart).
 	if bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(pw)) == nil {
 		if u.Username != username {
-			DB.Model(&u).Update("username", username)
+			if err := DB.Model(&u).Update("username", username).Error; err != nil {
+				return err
+			}
 		}
-		return
+		return nil
 	}
-	hash, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
-	DB.Model(&u).Updates(map[string]any{"password": string(hash), "username": username})
+	hash, err := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+	if err := DB.Model(&u).Updates(map[string]any{"password": string(hash), "username": username}).Error; err != nil {
+		return err
+	}
 	log.Printf("Super admin '%s': kredensial disinkronkan dari env", username)
+	return nil
 }
 
 // migrateLegacyTenant memindahkan data single-tenant lama ke satu tenant default.
 // Hanya berjalan sekali (saat belum ada tenant sama sekali).
-func migrateLegacyTenant() {
+func migrateLegacyTenant() error {
 	var n int64
-	DB.Model(&models.Tenant{}).Count(&n)
+	if err := DB.Model(&models.Tenant{}).Count(&n).Error; err != nil {
+		return err
+	}
 	if n > 0 {
-		return
+		return nil
 	}
 
-	var pro models.Plan
-	DB.Where("code = ?", "pro").First(&pro)
-	tenant := models.Tenant{Name: "Default", Status: models.TenantActive}
-	if pro.ID != 0 {
-		tenant.PlanID = &pro.ID
-	}
-	DB.Create(&tenant)
+	return DB.Transaction(func(tx *gorm.DB) error {
+		var pro models.Plan
+		if err := tx.Where("code = ?", "pro").First(&pro).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+		tenant := models.Tenant{Name: "Default", Status: models.TenantActive}
+		if pro.ID != 0 {
+			tenant.PlanID = &pro.ID
+		}
+		if err := tx.Create(&tenant).Error; err != nil {
+			return err
+		}
 
-	// Pindahkan agent lama (single-tenant) ke tenant default.
-	DB.Model(&models.Agent{}).Where("tenant_id = 0 OR tenant_id IS NULL").Update("tenant_id", tenant.ID)
+		// Pindahkan agent lama (single-tenant) ke tenant default.
+		if err := tx.Model(&models.Agent{}).Where("tenant_id = 0 OR tenant_id IS NULL").Update("tenant_id", tenant.ID).Error; err != nil {
+			return err
+		}
 
-	// Lampirkan user non-super yang belum punya tenant sebagai owner.
-	DB.Model(&models.User{}).
-		Where("is_super_admin = ? AND (tenant_id IS NULL OR tenant_id = 0)", false).
-		Updates(map[string]interface{}{"tenant_id": tenant.ID, "role": "owner"})
+		// Lampirkan user non-super yang belum punya tenant sebagai owner.
+		if err := tx.Model(&models.User{}).
+			Where("is_super_admin = ? AND (tenant_id IS NULL OR tenant_id = 0)", false).
+			Updates(map[string]interface{}{"tenant_id": tenant.ID, "role": "owner"}).Error; err != nil {
+			return err
+		}
 
-	// Instalasi baru: belum ada owner sama sekali -> buat admin/admin123.
-	var owners int64
-	DB.Model(&models.User{}).Where("tenant_id = ?", tenant.ID).Count(&owners)
-	if owners == 0 {
-		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
-		DB.Create(&models.User{
-			TenantID: &tenant.ID, Name: "Admin", Username: "admin",
-			Email: "admin@wa-assistant.local", Password: string(hash), Role: "owner",
-		})
-		log.Println("Seeder: owner default (admin / admin123) dibuat")
-	}
+		// Instalasi baru: jangan buat admin/admin123 otomatis. Pakai env eksplisit kalau memang butuh default owner.
+		var owners int64
+		if err := tx.Model(&models.User{}).Where("tenant_id = ?", tenant.ID).Count(&owners).Error; err != nil {
+			return err
+		}
+		if owners == 0 {
+			ownerUsername := strings.TrimSpace(os.Getenv("DEFAULT_OWNER_USERNAME"))
+			ownerPassword := os.Getenv("DEFAULT_OWNER_PASSWORD")
+			if ownerUsername == "" || ownerPassword == "" {
+				log.Println("Seeder: default owner tidak dibuat; set DEFAULT_OWNER_USERNAME/DEFAULT_OWNER_PASSWORD atau gunakan /api/register")
+			} else {
+				if err := validateAdminPassword("DEFAULT_OWNER_PASSWORD", ownerPassword); err != nil {
+					return err
+				}
+				hash, err := bcrypt.GenerateFromPassword([]byte(ownerPassword), bcrypt.DefaultCost)
+				if err != nil {
+					return err
+				}
+				if err := tx.Create(&models.User{
+					TenantID: &tenant.ID, Name: "Admin", Username: ownerUsername,
+					Email: "admin@wa-assistant.local", Password: string(hash), Role: "owner",
+				}).Error; err != nil {
+					return err
+				}
+				log.Printf("Seeder: owner default '%s' dibuat dari env", ownerUsername)
+			}
+		}
 
-	// Pastikan tenant punya minimal 1 agent; adopsi knowledge/chat lama yang yatim.
-	var agentCount int64
-	DB.Model(&models.Agent{}).Where("tenant_id = ?", tenant.ID).Count(&agentCount)
-	if agentCount == 0 {
-		def := models.Agent{TenantID: tenant.ID, Name: "CS Utama", Tone: "ramah"}
-		DB.Create(&def)
-		DB.Model(&models.Knowledge{}).Where("agent_id = 0 OR agent_id IS NULL").Update("agent_id", def.ID)
-		DB.Model(&models.ChatHistory{}).Where("agent_id = 0 OR agent_id IS NULL").Update("agent_id", def.ID)
-	}
+		// Pastikan tenant punya minimal 1 agent; adopsi knowledge/chat lama yang yatim.
+		var agentCount int64
+		if err := tx.Model(&models.Agent{}).Where("tenant_id = ?", tenant.ID).Count(&agentCount).Error; err != nil {
+			return err
+		}
+		if agentCount == 0 {
+			def := models.Agent{TenantID: tenant.ID, Name: "CS Utama", Tone: "ramah"}
+			if err := tx.Create(&def).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.Knowledge{}).Where("agent_id = 0 OR agent_id IS NULL").Update("agent_id", def.ID).Error; err != nil {
+				return err
+			}
+			if err := tx.Model(&models.ChatHistory{}).Where("agent_id = 0 OR agent_id IS NULL").Update("agent_id", def.ID).Error; err != nil {
+				return err
+			}
+		}
 
-	// Langganan aktif jangka panjang untuk tenant default.
-	if pro.ID != 0 {
-		DB.Create(&models.Subscription{
-			TenantID: tenant.ID, PlanID: pro.ID, Status: "active",
-			StartsAt: time.Now(), EndsAt: time.Now().AddDate(10, 0, 0),
-		})
-	}
-	log.Printf("Migrasi: tenant default (id=%d) dibuat, data lama dipindahkan", tenant.ID)
+		// Langganan aktif jangka panjang untuk tenant default.
+		if pro.ID != 0 {
+			if err := tx.Create(&models.Subscription{
+				TenantID: tenant.ID, PlanID: pro.ID, Status: "active",
+				StartsAt: time.Now(), EndsAt: time.Now().AddDate(10, 0, 0),
+			}).Error; err != nil {
+				return err
+			}
+		}
+		log.Printf("Migrasi: tenant default (id=%d) dibuat, data lama dipindahkan", tenant.ID)
+		return nil
+	})
 }
