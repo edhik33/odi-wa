@@ -60,6 +60,9 @@ func main() {
 	{
 		api.POST("/login", handlers.Login)
 		api.POST("/register", handlers.Register)
+		api.GET("/verify-email", handlers.VerifyEmail)
+		api.POST("/forgot-password", handlers.ForgotPassword)
+		api.POST("/reset-password", handlers.ResetPassword)
 		api.GET("/plans", handlers.PublicPlans)
 		api.POST("/billing/tripay/callback", handlers.TripayCallback) // webhook Tripay (signature diverifikasi)
 		api.GET("/agents/:id/media/:cid", handlers.ServeMedia)        // file media (auth via ?token=)

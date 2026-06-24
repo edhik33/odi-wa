@@ -210,6 +210,7 @@ func userResponse(u models.User) gin.H {
 		"name":           u.Name,
 		"username":       u.Username,
 		"email":          u.Email,
+		"email_verified": u.EmailVerified,
 		"role":           u.Role,
 		"is_super_admin": u.IsSuperAdmin,
 		"tenant_id":      u.TenantID,
@@ -425,13 +426,14 @@ func Register(c *gin.Context) {
 		}
 
 		user = models.User{
-			TenantID: &tenant.ID,
-			Name:     firstNonEmpty(req.Name, req.Email),
-			Username: username,
-			Email:    req.Email,
-			Phone:    req.Phone,
-			Password: string(passwordHash),
-			Role:     "owner",
+			TenantID:         &tenant.ID,
+			Name:             firstNonEmpty(req.Name, req.Email),
+			Username:         username,
+			Email:            req.Email,
+			Phone:            req.Phone,
+			Password:         string(passwordHash),
+			Role:             "owner",
+			EmailVerifyToken: generateVerifyToken(),
 		}
 		if err := tx.Create(&user).Error; err != nil {
 			return err
@@ -448,6 +450,16 @@ func Register(c *gin.Context) {
 		c.JSON(500, gin.H{"error": "Gagal membuat akun"})
 		return
 	}
+
+	// Kirim email verifikasi (async — jangan block response)
+	go func() {
+		verifyURL := config.Env("APP_URL", "http://103.181.143.107:8080") + "/api/verify-email?token=" + user.EmailVerifyToken
+		err := services.SendEmail(user.Email, "Verifikasi Email ChatLoop",
+			`<div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:24px"><h2 style="color:#16a34a">Verifikasi Email</h2><p>Terima kasih sudah mendaftar di ChatLoop! Klik tombol di bawah untuk mengaktifkan akun kamu:</p><a href="`+verifyURL+`" style="display:inline-block;padding:12px 24px;background:#16a34a;color:#fff;border-radius:8px;text-decoration:none;font-weight:600">Verifikasi Email</a><p style="color:#6b7280;font-size:14px;margin-top:16px">Kalau kamu tidak mendaftar, abaikan email ini.</p></div>`)
+		if err != nil {
+			log.Printf("Gagal kirim email verifikasi ke %s: %v", user.Email, err)
+		}
+	}()
 
 	c.JSON(201, gin.H{"token": issueToken(user), "user": userResponse(user)})
 }

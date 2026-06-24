@@ -3,6 +3,7 @@ import { ThemeProvider, CssBaseline } from '@mui/material';
 import Landing from './pages/Landing';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
 import Dashboard from './pages/Dashboard';
 import AdminLayout from './pages/admin/AdminLayout';
 import AdminOverview from './pages/admin/AdminOverview';
@@ -36,6 +37,7 @@ export default function App() {
           <Route path="/" element={<Landing />} />
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/daftar" element={<GuestRoute><Register /></GuestRoute>} />
+          <Route path="/lupa-password" element={<ForgotPassword />} />
 
           {/* Panel operator platform (super admin) */}
           <Route path="/admin" element={<PrivateRoute><AdminLayout /></PrivateRoute>}>

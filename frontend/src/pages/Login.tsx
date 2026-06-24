@@ -87,6 +87,7 @@ export default function Login() {
             {loading ? 'Masuk…' : cooldown > 0 ? `Coba lagi ${cooldown}d` : 'Masuk'}
           </Button>
           <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
+            <Link href="/lupa-password" underline="hover" sx={{ mr: 2 }}>Lupa password?</Link>
             Belum punya akun? <Link href="/daftar" underline="hover">Daftar gratis</Link>
           </Typography>
         </CardContent>
