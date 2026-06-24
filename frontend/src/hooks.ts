@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import api from './services/api';
-import type { Plan, TenantRow, Usage, AdminStats, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, CheckResult, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, SavedContact, SavedContactsResp, FollowUp, Agent, KnowledgeItem, Handoff } from './types';
+import type { Plan, TenantRow, Usage, AdminStats, AIModelConfig, Invoice, PaymentChannel, Analytics, Contact, ChatMsg, CheckResult, Broadcast, BroadcastRecipient, WAGroup, LabelInfo, ScheduledMessage, AutoReply, Template, SavedContact, SavedContactsResp, FollowUp, Agent, KnowledgeItem, Handoff } from './types';
 
 type ContactList = { number: string; name: string }[];
 
@@ -51,6 +51,21 @@ export function useAdminStats() {
   return useQuery<AdminStats>({
     queryKey: ['admin', 'stats'],
     queryFn: async () => (await api.get('/admin/stats')).data,
+  });
+}
+
+export function useAdminAIModel() {
+  return useQuery<AIModelConfig>({
+    queryKey: ['admin', 'ai-model'],
+    queryFn: async () => (await api.get('/admin/ai-model')).data,
+  });
+}
+
+export function useSetAdminAIModel() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (preset: string) => (await api.put('/admin/ai-model', { preset })).data,
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['admin', 'ai-model'] }),
   });
 }
 

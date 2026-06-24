@@ -3,9 +3,31 @@ package handlers
 import (
 	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
+	"wa-assistant/backend/services"
 
 	"github.com/gin-gonic/gin"
 )
+
+// AdminGetAIModel = model AI aktif + daftar preset (untuk panel super-admin).
+func AdminGetAIModel(c *gin.Context) {
+	c.JSON(200, gin.H{"active": services.ActivePresetKey(), "presets": services.AIPresetList()})
+}
+
+// AdminSetAIModel mengganti model AI yang dipakai seluruh tenant.
+func AdminSetAIModel(c *gin.Context) {
+	var req struct {
+		Preset string `json:"preset"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+	if !services.SetActivePreset(req.Preset) {
+		c.JSON(400, gin.H{"error": "Preset model tidak dikenal"})
+		return
+	}
+	c.JSON(200, gin.H{"active": req.Preset})
+}
 
 // AdminStats = ringkasan untuk dashboard operator platform.
 func AdminStats(c *gin.Context) {

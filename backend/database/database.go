@@ -45,6 +45,7 @@ func Init() {
 		&models.ScheduledMessage{}, &models.Label{}, &models.ChatLabel{}, &models.AutoReply{},
 		&models.Template{},
 		&models.FollowUp{}, &models.FollowUpStep{}, &models.FollowUpEnrollment{},
+		&models.AppSetting{},
 	)
 
 	seedPlans()

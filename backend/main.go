@@ -58,6 +58,8 @@ func main() {
 			admin.GET("/stats", handlers.AdminStats)
 			admin.GET("/tenants", handlers.AdminTenants)
 			admin.PUT("/tenants/:id", handlers.AdminUpdateTenant)
+			admin.GET("/ai-model", handlers.AdminGetAIModel)
+			admin.PUT("/ai-model", handlers.AdminSetAIModel)
 			admin.GET("/plans", handlers.AdminPlans)
 			admin.POST("/plans", handlers.AdminCreatePlan)
 			admin.PUT("/plans/:id", handlers.AdminUpdatePlan)

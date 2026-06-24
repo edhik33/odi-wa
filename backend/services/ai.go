@@ -5,7 +5,9 @@ import (
 	"log"
 	"sort"
 	"strings"
+	"sync"
 	"wa-assistant/backend/config"
+	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
 
 	openai "github.com/sashabaranov/go-openai"
@@ -24,6 +26,98 @@ func InitAI() {
 	cfg := openai.DefaultConfig(config.EnvRequired("OPENAI_API_KEY"))
 	cfg.BaseURL = config.Env("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
 	AIClient = openai.NewClientWithConfig(cfg)
+}
+
+// ---- Model AI yang bisa diganti dinamis dari panel super-admin ----
+//
+// "deepseek" = jalur native sekarang (default, tak berubah). Preset lain lewat OpenRouter
+// (satu API key OPENROUTER_API_KEY membuka banyak model). Key tetap di .env, bukan di DB.
+
+const openRouterBase = "https://openrouter.ai/api/v1"
+
+type aiPreset struct {
+	Key, Label, Model, BaseURL, KeyEnv string
+}
+
+// aiPresetDefs mengembalikan daftar preset. Model OpenRouter bisa di-override via env
+// (slug bisa berubah sewaktu-waktu) tanpa ganti kode.
+func aiPresetDefs() []aiPreset {
+	return []aiPreset{
+		{Key: "deepseek", Label: "DeepSeek (default)",
+			Model: config.Env("OPENAI_MODEL", "deepseek-v4-pro"), BaseURL: config.Env("OPENAI_BASE_URL", "https://api.deepseek.com/v1"), KeyEnv: "OPENAI_API_KEY"},
+		{Key: "haiku", Label: "Claude Haiku 4.5 (OpenRouter)",
+			Model: config.Env("OPENROUTER_MODEL_HAIKU", "anthropic/claude-haiku-4.5"), BaseURL: openRouterBase, KeyEnv: "OPENROUTER_API_KEY"},
+		{Key: "gemini-flash", Label: "Gemini Flash (OpenRouter)",
+			Model: config.Env("OPENROUTER_MODEL_GEMINI", "google/gemini-2.0-flash-001"), BaseURL: openRouterBase, KeyEnv: "OPENROUTER_API_KEY"},
+		{Key: "gpt-mini", Label: "GPT-4o mini (OpenRouter)",
+			Model: config.Env("OPENROUTER_MODEL_GPTMINI", "openai/gpt-4o-mini"), BaseURL: openRouterBase, KeyEnv: "OPENROUTER_API_KEY"},
+	}
+}
+
+func presetByKey(key string) aiPreset {
+	for _, p := range aiPresetDefs() {
+		if p.Key == key {
+			return p
+		}
+	}
+	return aiPresetDefs()[0] // fallback deepseek
+}
+
+// activePreset = preset yang dipilih admin; bila API key-nya belum diisi di .env,
+// otomatis jatuh ke deepseek supaya AI tidak pernah mati.
+func activePreset() aiPreset {
+	p := presetByKey(database.GetAppSetting("ai_preset", "deepseek"))
+	if config.Env(p.KeyEnv, "") == "" {
+		return aiPresetDefs()[0]
+	}
+	return p
+}
+
+var (
+	aiClientCache = map[string]*openai.Client{}
+	aiClientMu    sync.Mutex
+)
+
+func clientForPreset(p aiPreset) *openai.Client {
+	aiClientMu.Lock()
+	defer aiClientMu.Unlock()
+	if c, ok := aiClientCache[p.Key]; ok {
+		return c
+	}
+	cfg := openai.DefaultConfig(config.Env(p.KeyEnv, ""))
+	cfg.BaseURL = p.BaseURL
+	c := openai.NewClientWithConfig(cfg)
+	aiClientCache[p.Key] = c
+	return c
+}
+
+// AIPresetInfo = info preset untuk panel admin (tanpa membocorkan API key).
+type AIPresetInfo struct {
+	Key       string `json:"key"`
+	Label     string `json:"label"`
+	Model     string `json:"model"`
+	Available bool   `json:"available"` // true bila API key-nya sudah diisi di .env
+}
+
+func AIPresetList() []AIPresetInfo {
+	var out []AIPresetInfo
+	for _, p := range aiPresetDefs() {
+		out = append(out, AIPresetInfo{Key: p.Key, Label: p.Label, Model: p.Model, Available: config.Env(p.KeyEnv, "") != ""})
+	}
+	return out
+}
+
+func ActivePresetKey() string { return database.GetAppSetting("ai_preset", "deepseek") }
+
+// SetActivePreset menyimpan preset aktif (validasi: harus salah satu yang dikenal).
+func SetActivePreset(key string) bool {
+	for _, p := range aiPresetDefs() {
+		if p.Key == key {
+			database.SetAppSetting("ai_preset", key)
+			return true
+		}
+	}
+	return false
 }
 
 func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history []models.ChatHistory) (string, bool, error) {
@@ -70,8 +164,9 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 		maxTok = 900 // ruang cukup untuk knowledge panjang (daftar harga, syarat, dsb.)
 	}
 
-	resp, err := AIClient.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
-		Model:       config.Env("OPENAI_MODEL", "deepseek-v4-pro"),
+	p := activePreset()
+	resp, err := clientForPreset(p).CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model:       p.Model,
 		Messages:    messages,
 		MaxTokens:   maxTok,
 		Temperature: temp,

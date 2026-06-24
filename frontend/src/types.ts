@@ -47,6 +47,18 @@ export interface AdminStats {
   period: string;
 }
 
+export interface AIPreset {
+  key: string;
+  label: string;
+  model: string;
+  available: boolean; // API key sudah diisi di .env
+}
+
+export interface AIModelConfig {
+  active: string;
+  presets: AIPreset[];
+}
+
 export interface Invoice {
   id: number;
   plan_id: number;
