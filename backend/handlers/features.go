@@ -177,16 +177,23 @@ func InboxSend(c *gin.Context) {
 		return
 	}
 	var err error
+	var waMsgID string
 	if req.ReplyTo != "" {
 		err = services.WA(id).SendReply(req.To, req.Message, req.ReplyTo)
 	} else {
-		err = services.WA(id).SendText(req.To, req.Message)
+		waMsgID, err = services.WA(id).SendTextAndGetID(req.To, req.Message)
 	}
 	if err != nil {
 		c.JSON(502, gin.H{"error": err.Error()})
 		return
 	}
 	logTurn(id, req.To, "", req.Message, true, req.ReplyTo, req.ReplyText)
+	// Simpan WA message ID untuk keperluan revoke nanti
+	if waMsgID != "" {
+		database.DB.Model(&models.ChatHistory{}).
+			Where("agent_id = ? AND sender = ? AND reply = ?", id, req.To, req.Message).
+			Order("id desc").Limit(1).Update("wa_msg_id", waMsgID)
+	}
 
 	// Kirim manual = ambil alih percakapan: pastikan bot berhenti untuk kontak ini.
 	var cnt int64

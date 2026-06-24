@@ -408,7 +408,8 @@ func (w *waInstance) Logout() error {
 
 // SendReply mengirim balasan yang mengutip pesan tertentu (reply-to).
 func (w *waInstance) SendReply(toNumber, message, replyToID string) error {
-	return w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message, replyToID)
+	_, err := w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message, replyToID)
+	return err
 }
 
 // Typing mengirim indikator "mengetik" ke kontak.
@@ -443,7 +444,8 @@ func (w *waInstance) RevokeMessage(toNumber string, msgID types.MessageID) error
 
 // SendText mengirim pesan ke nomor bare (mis "628123") tanpa pemanggil perlu menyusun JID.
 func (w *waInstance) SendText(toNumber, message string) error {
-	return w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message)
+	_, err := w.SendMessage(types.NewJID(toNumber, types.DefaultUserServer), message)
+	return err
 }
 
 // NormalizePhone membersihkan nomor jadi format digit internasional (mis. "08.." -> "628..").
@@ -757,12 +759,12 @@ func (w *waInstance) Suspend() {
 	w.status = "disconnected"
 }
 
-func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...string) error {
+func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...string) (string, error) {
 	w.mu.Lock()
 	client := w.client
 	w.mu.Unlock()
 	if client == nil || !client.IsConnected() {
-		return fmt.Errorf("client WA tidak terhubung")
+		return "", fmt.Errorf("client WA tidak terhubung")
 	}
 
 	ctx := context.Background()
@@ -789,6 +791,27 @@ func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...stri
 	}
 	_, err := client.SendMessage(ctx, to, msg)
 	return err
+}
+
+// SendTextAndGetID mengirim teks dan mengembalikan ID pesan WhatsApp (untuk revoke).
+func (w *waInstance) SendTextAndGetID(toNumber, message string) (string, error) {
+	w.mu.Lock()
+	client := w.client
+	w.mu.Unlock()
+	if client == nil || !client.IsConnected() {
+		return "", fmt.Errorf("client WA tidak terhubung")
+	}
+	jid := types.NewJID(toNumber, types.DefaultUserServer)
+	ctx := context.Background()
+	_ = client.SendPresence(ctx, types.PresenceAvailable)
+	_ = client.SendChatPresence(ctx, jid, types.ChatPresenceComposing, types.ChatPresenceMediaText)
+	time.Sleep(humanDelay(message))
+	_ = client.SendChatPresence(ctx, jid, types.ChatPresencePaused, types.ChatPresenceMediaText)
+	resp, err := client.SendMessage(ctx, jid, &waProto.Message{Conversation: proto.String(message)})
+	if err != nil {
+		return "", err
+	}
+	return resp.ID, nil
 }
 
 

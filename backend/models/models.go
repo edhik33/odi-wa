@@ -78,3 +78,15 @@ type Knowledge struct {
 	Embedding string    `gorm:"type:longtext" json:"-"`
 	CreatedAt time.Time `json:"created_at"`
 }
+
+type User struct {
+	ID           uint    `gorm:"primaryKey" json:"id"`
+	Username     string  `gorm:"uniqueIndex;size:64;not null" json:"username"`
+	Password     string  `json:"-"`
+	Role         string  `gorm:"size:24;default:owner" json:"role"`
+	Name         string  `json:"name"`
+	Email        string  `json:"email"`
+	TenantID     *uint   `gorm:"index" json:"tenant_id"`
+	IsSuperAdmin bool    `gorm:"default:false" json:"is_super_admin"`
+}
+
