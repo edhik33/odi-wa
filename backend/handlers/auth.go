@@ -6,10 +6,6 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"encoding/json"
-	"net/http"
-	"net/url"
-	"os"
 
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
