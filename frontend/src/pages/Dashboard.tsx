@@ -775,7 +775,7 @@ export default function Dashboard() {
             )}
           </Box>
         )}
-        {tab === 'inbox' && <InboxPanel agentId={agentId} aiEnabled={aiEnabled} seed={seed?.kind === 'inbox' ? seed : null} />}
+        {tab === 'inbox' && <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column' }}><InboxPanel agentId={agentId} aiEnabled={aiEnabled} seed={seed?.kind === 'inbox' ? seed : null} /></Box>}
         {tab === 'coba-chat' && <TestChatPanel agentId={agentId} />}
         {tab === 'broadcast' && <BroadcastPanel agentId={agentId} seed={seed?.kind === 'broadcast' ? seed : null} />}
         {tab === 'kalender' && <CalendarPanel agentId={agentId} />}
