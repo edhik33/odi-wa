@@ -2,105 +2,79 @@ import { useState } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, Stack, Chip, IconButton, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, InputAdornment,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
 } from '@mui/material';
+import EmptyState from './common/EmptyState';
+import PeopleIcon from '@mui/icons-material/PeopleOutlined';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import ChatIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
-import { useCrmContacts, useSaveCrmContact, useDeleteCrmContact, useCrmContactsExport } from '../hooks';
-import type { SavedContact } from '../types';
-import { swalConfirm, swalAlert } from '../services/swal';
-import PageHeader from './PageHeader';
+import { useCrmContacts, useSaveContact, useDeleteContact, useExportContacts } from '../hooks';
 
 const EMPTY: Partial<SavedContact> = { number: '', name: '', notes: '', tags: '' };
-
-// waktu chat terakhir → teks relatif singkat.
-function lastChatLabel(iso: string | null): string {
-  if (!iso) return 'Belum pernah chat';
-  const d = new Date(iso);
-  const days = Math.floor((Date.now() - d.getTime()) / 86400000);
-  if (days <= 0) return 'Chat hari ini';
-  if (days === 1) return 'Chat kemarin';
-  if (days < 30) return `Chat ${days} hari lalu`;
-  return `Chat ${d.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: '2-digit' })}`;
-}
 
 export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   agentId: number;
   onBroadcast: (recipients: string) => void;
   onOpenChat: (number: string) => void;
 }) {
-  const [q, setQ] = useState('');
-  const [tag, setTag] = useState('');
-  const [page, setPage] = useState(1);
-  const { data, isLoading } = useCrmContacts(agentId, q, tag, page);
-  const save = useSaveCrmContact(agentId);
-  const del = useDeleteCrmContact(agentId);
-  const exportContacts = useCrmContactsExport(agentId);
-
+  const [addOpen, setAddOpen] = useState(false);
+  const [edit, setEdit] = useState<SavedContact | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<SavedContact>>(EMPTY);
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [q, setQ] = useState('');
+  const [tag, setTag] = useState('');
+  const [page, setPage] = useState(0);
 
-  const contacts = data?.data || [];
-  const total = data?.total || 0;
-  const limit = data?.limit || 20;
-  const totalPages = Math.max(1, Math.ceil(total / limit));
+  const { data, isLoading } = useCrmContacts(agentId, q, tag, page);
+  const saveContact = useSaveContact(agentId);
+  const deleteContact = useDeleteContact(agentId);
+  const exportContacts = useExportContacts(agentId);
+
+  const contacts = data?.contacts || [];
   const allTags = data?.all_tags || [];
 
-  const openNew = () => { setForm(EMPTY); setErrors({}); setOpen(true); };
-  const openEdit = (ct: SavedContact) => { setForm(ct); setErrors({}); setOpen(true); };
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (!form.id && !form.number?.trim()) e.number = 'Nomor wajib diisi';
-    setErrors(e);
-    return Object.keys(e).length === 0;
+  const openAdd = () => { setForm(EMPTY); setAddOpen(true); };
+  const openEdit = (ct: SavedContact) => { setForm(ct); setEdit(ct); setOpen(true); };
+  const closeDialog = () => { setAddOpen(false); setOpen(false); setEdit(null); };
+
+  const save = async () => {
+    await saveContact.mutateAsync(form);
+    closeDialog();
   };
-  const submit = async () => {
-    if (!validate()) return;
-    try {
-      await save.mutateAsync(form);
-      setOpen(false);
-    } catch (err: any) {
-      await swalAlert(err?.response?.data?.error || 'Gagal menyimpan kontak.', 'error');
-    }
-  };
+
   const remove = async (ct: SavedContact) => {
-    if (await swalConfirm(`Hapus ${ct.name || '+' + ct.number} dari kontak?`)) del.mutate(ct.id);
+    if (confirm(`Hapus kontak ${ct.name || ct.number}?`)) await deleteContact.mutateAsync(ct.id);
   };
 
-  const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(1); };
+  const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(0); };
 
-  const broadcastFilter = async () => {
-    try {
-      const list = await exportContacts.mutateAsync({ q, tag });
-      if (list.length === 0) { await swalAlert('Tidak ada kontak pada filter ini.', 'info'); return; }
-      onBroadcast(list.map(c => (c.name ? `${c.number},${c.name}` : c.number)).join('\n'));
-    } catch {
-      await swalAlert('Gagal menyiapkan broadcast.', 'error');
-    }
+  const handleExport = async () => {
+    const list = await exportContacts.mutateAsync({ q, tag });
+    const csv = 'Nama,Nomor,Tags,Catatan\n' + list.map((c: any) => `"${c.name || ''}","+${c.number}","${c.tags || ''}","${c.notes || ''}"`).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'kontak.csv'; a.click();
+    URL.revokeObjectURL(url);
   };
-
-  if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
   return (
     <Box>
-      <PageHeader title="Kontak"
-        subtitle="Buku kontak terpusat untuk nomor ini. Tambahkan catatan & tag agar mudah dikelompokkan, lalu kirim broadcast ke satu tag atau buka chat langsung."
-        action={<Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>Tambah Kontak</Button>} />
-
-      <Stack direction="row" sx={{ gap: 1, mb: 1.5, flexWrap: 'wrap', alignItems: 'center' }}>
-        <TextField size="small" placeholder="Cari nama atau nomor…" value={q}
-          onChange={e => { setQ(e.target.value); setPage(1); }}
-          slotProps={{ input: { startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> } }}
-          sx={{ flex: 1, minWidth: 200 }} />
-        <Button size="small" variant="outlined" startIcon={<CampaignIcon />} onClick={broadcastFilter}
-          disabled={exportContacts.isPending || total === 0}>
-          {tag ? `Broadcast tag "${tag}"` : 'Broadcast hasil ini'}
-        </Button>
+      <Stack direction="row" sx={{ mb: 1.5, gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+        <Typography variant="h6">Kontak</Typography>
+        <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Tambah</Button>
       </Stack>
+
+      <TextField
+        fullWidth size="small" placeholder="Cari nama atau nomor…"
+        value={q} onChange={e => { setQ(e.target.value); setPage(0); }}
+        InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
+        sx={{ mb: 1.5 }}
+      />
 
       {allTags.length > 0 && (
         <Box sx={{ mb: 1.5 }}>
@@ -117,78 +91,100 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
         </Box>
       )}
 
-      {contacts.length === 0 ? (
+      {isLoading ? (
+        <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /></Box>
+      ) : contacts.length === 0 ? (
         <EmptyState
           icon={<PeopleIcon sx={{ fontSize: 48 }} />}
-          title={q || tag ? 'Tidak ada kontak yang cocok' : 'Belum ada kontak'}
-          description={q || tag ? 'Tidak ada kontak yang cocok dengan filter.' : 'Kontak akan terisi otomatis saat pelanggan chat, atau kamu bisa tambahkan manual.'}
-          action={!q && !tag ? { label: 'Tambah Kontak', onClick: () => setAddOpen(true) } : undefined}
+          title={q || tag ? 'Tidak ada kontak' : 'Belum ada kontak'}
+          description={q || tag ? 'Coba ubah filter atau kata kunci.' : 'Kontak akan terisi otomatis saat pelanggan chat.'}
         />
       ) : (
-        <Stack spacing={1}>
-          {contacts.map(ct => (
-            <Card key={ct.id} variant="outlined">
-              <CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}>
-                <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ minWidth: 0, flex: 1 }}>
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.25 }}>
-                      <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{ct.name || `+${ct.number}`}</Typography>
-                      {ct.tags && ct.tags.split(',').map(t => t.trim()).filter(Boolean).slice(0, 2).map((t, i) => (
-                        <Chip key={i} label={t} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }} />
-                      ))}
-                      {ct.tags && ct.tags.split(',').filter(Boolean).length > 2 && (
-                        <Typography variant="caption" color="text.secondary">+{ct.tags.split(',').filter(Boolean).length - 2}</Typography>
+        <Paper variant="outlined" sx={{ mb: 1 }}>
+          <TableContainer>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell sx={{ fontWeight: 700 }}>Nama / Nomor</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Tag</TableCell>
+                  <TableCell sx={{ fontWeight: 700 }}>Terakhir Chat</TableCell>
+                  <TableCell sx={{ fontWeight: 700, width: 120 }}>Aksi</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {contacts.map(ct => (
+                  <TableRow key={ct.id} hover>
+                    <TableCell>
+                      <Typography sx={{ fontWeight: 600, fontSize: 13 }}>{ct.name || `+${ct.number}`}</Typography>
+                      {ct.name && <Typography variant="caption" color="text.secondary">+{ct.number}</Typography>}
+                    </TableCell>
+                    <TableCell>
+                      {ct.tags ? (
+                        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap' }}>
+                          {ct.tags.split(',').map(t => t.trim()).filter(Boolean).map((t, i) => (
+                            <Chip key={i} label={t} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.65rem' }} />
+                          ))}
+                        </Stack>
+                      ) : (
+                        <Typography variant="caption" color="text.disabled">—</Typography>
                       )}
-                    </Stack>
-                    <Typography variant="caption" color="text.secondary">
-                      {ct.name ? `+${ct.number}` : ''}{ct.last_at ? ` · ${lastChatLabel(ct.last_at)}` : ''}
-                    </Typography>
-                    {ct.notes && (
-                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
-                        {ct.notes.length > 80 ? ct.notes.slice(0, 80) + '…' : ct.notes}
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="caption" color="text.secondary">
+                        {ct.last_at ? lastChatLabel(ct.last_at) : '—'}
                       </Typography>
-                    )}
-                  </Box>
-                  <Stack direction="row" sx={{ alignItems: 'center', flexShrink: 0, gap: 0.25 }}>
-                    <IconButton size="small" title="Buka chat" onClick={() => onOpenChat(ct.number)}><ChatIcon fontSize="small" /></IconButton>
-                    <IconButton size="small" title="Edit" onClick={() => openEdit(ct)}><EditIcon fontSize="small" /></IconButton>
-                    <IconButton size="small" color="error" title="Hapus" onClick={() => remove(ct)}><DeleteIcon fontSize="small" /></IconButton>
-                  </Stack>
-                </Stack>
-              </CardContent>
-            </Card>
-          ))}
-        </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="row" spacing={0.5}>
+                        <IconButton size="small" onClick={() => onOpenChat(ct.number)}><ChatIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" onClick={() => openEdit(ct)}><EditIcon fontSize="small" /></IconButton>
+                        <IconButton size="small" color="error" onClick={() => remove(ct)}><DeleteIcon fontSize="small" /></IconButton>
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        </Paper>
       )}
 
-      {totalPages > 1 && (
-        <Stack direction="row" sx={{ justifyContent: 'center', alignItems: 'center', gap: 2, mt: 2 }}>
-          <Button size="small" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Sebelumnya</Button>
-          <Typography variant="caption">Hal {page} / {totalPages} · {total} kontak</Typography>
-          <Button size="small" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>Berikutnya</Button>
-        </Stack>
-      )}
+      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
+        <Button size="small" variant="outlined" onClick={handleExport} startIcon={<CampaignIcon />} disabled={contacts.length === 0}>
+          {tag ? `Broadcast tag "${tag}"` : 'Broadcast hasil ini'}
+        </Button>
+      </Stack>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>{form.id ? 'Edit Kontak' : 'Kontak Baru'}</DialogTitle>
+      <Dialog open={addOpen || open} onClose={closeDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>{addOpen ? 'Tambah Kontak' : 'Edit Kontak'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
-            <TextField label="Nomor WhatsApp" value={form.number ?? ''} disabled={!!form.id}
-              onChange={e => { setForm({ ...form, number: e.target.value }); if (errors.number) setErrors(p => ({ ...p, number: '' })); }}
-              size="small" placeholder="08123456789" error={!!errors.number}
-              helperText={errors.number || (form.id ? 'Nomor tidak bisa diubah. Hapus & tambah ulang bila salah.' : 'Boleh format 08… atau 62…')} />
-            <TextField label="Nama" value={form.name ?? ''} onChange={e => setForm({ ...form, name: e.target.value })} size="small" />
-            <TextField label="Tag (pisah dengan koma)" value={form.tags ?? ''} onChange={e => setForm({ ...form, tags: e.target.value })}
-              size="small" placeholder="vip, reseller" helperText="Untuk mengelompokkan kontak (mis. vip, reseller, kota)." />
-            <TextField label="Catatan" value={form.notes ?? ''} onChange={e => setForm({ ...form, notes: e.target.value })}
-              size="small" multiline rows={3} placeholder="Suka produk A, follow up akhir bulan…" />
+            <TextField label="Nama" size="small" value={form.name || ''} onChange={e => setForm({...form, name: e.target.value})} />
+            <TextField label="Nomor (08xx…)" size="small" value={form.number || ''} onChange={e => setForm({...form, number: e.target.value})} disabled={!!edit} />
+            <TextField label="Tags (pisah koma)" size="small" value={form.tags || ''} onChange={e => setForm({...form, tags: e.target.value})} placeholder="vip, pelanggan tetap" />
+            <TextField label="Catatan" size="small" multiline rows={2} value={form.notes || ''} onChange={e => setForm({...form, notes: e.target.value})} />
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Batal</Button>
-          <Button variant="contained" onClick={submit} disabled={save.isPending}>Simpan</Button>
+          <Button onClick={closeDialog}>Batal</Button>
+          <Button variant="contained" onClick={save} disabled={saveContact.isPending}>Simpan</Button>
         </DialogActions>
       </Dialog>
     </Box>
   );
+}
+
+function lastChatLabel(d: string | undefined | null): string {
+  if (!d) return '';
+  const now = Date.now();
+  const then = new Date(d).getTime();
+  const diff = now - then;
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1) return 'Baru saja';
+  if (mins < 60) return `${mins} menit lalu`;
+  const hours = Math.floor(mins / 60);
+  if (hours < 24) return `${hours} jam lalu`;
+  const days = Math.floor(hours / 24);
+  if (days < 30) return `${days} hari lalu`;
+  return new Date(d).toLocaleDateString('id-ID');
 }
