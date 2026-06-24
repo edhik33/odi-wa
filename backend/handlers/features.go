@@ -190,16 +190,16 @@ func InboxSend(c *gin.Context) {
 	logTurn(id, req.To, "", req.Message, true, req.ReplyTo, req.ReplyText)
 	// Simpan WA message ID untuk keperluan revoke nanti
 	if waMsgID != "" {
-		database.DB.Model(&models.ChatHistory{}).
+		_ = database.DB.Model(&models.ChatHistory{}).
 			Where("agent_id = ? AND sender = ? AND reply = ?", id, req.To, req.Message).
-			Order("id desc").Limit(1).Update("wa_msg_id", waMsgID)
+			Order("id desc").Limit(1).Update("wa_msg_id", waMsgID).Error
 	}
 
 	// Kirim manual = ambil alih percakapan: pastikan bot berhenti untuk kontak ini.
 	var cnt int64
 	database.DB.Model(&models.Handoff{}).Where("agent_id = ? AND sender = ?", id, req.To).Count(&cnt)
 	if cnt == 0 {
-		database.DB.Create(&models.Handoff{AgentID: id, Sender: req.To, LastMsg: req.Message})
+		_ = database.DB.Create(&models.Handoff{AgentID: id, Sender: req.To, LastMsg: req.Message}).Error
 	}
 	c.JSON(200, gin.H{"ok": true})
 }
@@ -241,7 +241,7 @@ func RevokeMessage(c *gin.Context) {
 		return
 	}
 	// Tandai pesan sebagai revoked di DB (tampilkan "Pesan ini dihapus" di Inbox)
-	database.DB.Model(&models.ChatHistory{}).Where("wa_msg_id = ?", msgID).Update("revoked", true)
+	_ = database.DB.Model(&models.ChatHistory{}).Where("wa_msg_id = ?", msgID).Update("revoked", true).Error
 	c.JSON(200, gin.H{"ok": true})
 }
 
@@ -295,16 +295,16 @@ func InboxSendMedia(c *gin.Context) {
 	if reply == "" {
 		reply = mediaPlaceholder(mediaType, fh.Filename)
 	}
-	database.DB.Create(&models.ChatHistory{
+	_ = database.DB.Create(&models.ChatHistory{
 		AgentID: id, Sender: to, Reply: reply, FromHuman: true,
 		MediaType: mediaType, MediaPath: storeMedia(id, data, mimetype, fh.Filename),
 		FileName: fh.Filename, Mimetype: mimetype,
-	})
+	}).Error
 
 	var cnt int64
 	database.DB.Model(&models.Handoff{}).Where("agent_id = ? AND sender = ?", id, to).Count(&cnt)
 	if cnt == 0 {
-		database.DB.Create(&models.Handoff{AgentID: id, Sender: to, LastMsg: reply})
+		_ = database.DB.Create(&models.Handoff{AgentID: id, Sender: to, LastMsg: reply}).Error
 	}
 	c.JSON(200, gin.H{"ok": true})
 }

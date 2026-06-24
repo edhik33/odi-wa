@@ -203,17 +203,19 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 	}
 	// logRow mencatat satu baris percakapan beserta lampiran media (bila ada).
 	logRow := func(message, reply string) {
-		database.DB.Create(&models.ChatHistory{
+		if err := database.DB.Create(&models.ChatHistory{
 			AgentID: agentID, Sender: num, Message: message, Reply: reply,
 			MediaType: in.MediaType, MediaPath: mediaPath, FileName: in.FileName, Mimetype: in.Mimetype,
 			WAMsgID: in.WAMsgID, ReplyTo: in.ReplyTo,
-		})
+		}).Error; err != nil {
+			log.Printf("Gagal mencatat ChatHistory (agent %d, %s): %v", agentID, num, err)
+		}
 	}
 	send := func(text string) { _ = services.WA(agentID).SendMessage(sender, text) }
 
 	// 0. Permintaan berhenti (opt-out) -> catat agar tidak ikut broadcast lagi, lalu konfirmasi.
 	if in.Text != "" && isOptOutKeyword(in.Text) {
-		database.DB.Where(models.OptOut{AgentID: agentID, Sender: num}).FirstOrCreate(&models.OptOut{AgentID: agentID, Sender: num})
+		_ = database.DB.Where(models.OptOut{AgentID: agentID, Sender: num}).FirstOrCreate(&models.OptOut{AgentID: agentID, Sender: num}).Error
 		ack := "Baik kak 🙏 nomor ini tidak akan kami kirimi pesan promosi lagi. Terima kasih."
 		send(ack)
 		logRow(in.Text, ack)
@@ -271,7 +273,7 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		if in.MediaType != "image" {
 			ack = "Terima kasih kak 🙏 file/medianya sudah kami terima, akan segera kami cek ya."
 		}
-		database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText})
+		_ = database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText}).Error
 		send(ack)
 		logRow(displayText, ack)
 		log.Printf("Media (%s) dari %s (agent %d) -> dialihkan ke CS (AI teks tak bisa lihat media)", in.MediaType, num, agentID)
@@ -280,7 +282,7 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 
 	// 5. Kuota balasan AI habis -> alihkan ke CS manusia.
 	if aiQuotaExceeded(agent.TenantID) {
-		database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText})
+		_ = database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText}).Error
 		send(quotaMessage)
 		logRow(displayText, quotaMessage)
 		log.Printf("Kuota AI habis (tenant %d, agent %d) — dialihkan ke CS untuk %s", agent.TenantID, agentID, num)
@@ -303,7 +305,7 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 	}
 	if escalate {
 		reply = deferMessage
-		database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText})
+		_ = database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText}).Error
 		log.Printf("Eskalasi (agent %d) dari %s: %q", agentID, num, in.Text)
 	}
 	sendChunked(agentID, sender, reply) // balasan panjang dipecah jadi beberapa bubble (lebih manusiawi)
@@ -412,10 +414,12 @@ func mediaPlaceholder(mediaType, fileName string) string {
 }
 
 func logTurn(agentID uint, num, msg, reply string, fromHuman bool, replyTo string, replyText string) {
-	database.DB.Create(&models.ChatHistory{
+	if err := database.DB.Create(&models.ChatHistory{
 		AgentID: agentID, Sender: num, Message: msg, Reply: reply, FromHuman: fromHuman,
 		ReplyTo: replyTo, ReplyText: replyText,
-	})
+	}).Error; err != nil {
+		log.Printf("Gagal logTurn (agent %d, %s): %v", agentID, num, err)
+	}
 }
 
 // ListHandoffs: daftar kontak yang sedang butuh ditangani manusia (bot pause).
