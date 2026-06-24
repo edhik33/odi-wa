@@ -341,3 +341,39 @@ func answerKnowledgeOverlap(reply string, relevant []models.Knowledge) float64 {
 	}
 	return float64(match) / float64(total)
 }
+
+// SummarizeConversation membuat ringkasan 2-3 kalimat dari percakapan terakhir.
+// Dipanggil otomatis oleh maybeSummarize saat jeda >30 menit antarchat.
+func SummarizeConversation(agentID uint, msgs []models.ChatHistory) (string, error) {
+	if len(msgs) == 0 {
+		return "", nil
+	}
+	// Susun percakapan dari paling lama ke baru (msgs sudah desc, dibalik).
+	var sb strings.Builder
+	for i := len(msgs) - 1; i >= 0; i-- {
+		if msgs[i].Message != "" {
+			sb.WriteString("User: " + msgs[i].Message + "\n")
+		}
+		if msgs[i].Reply != "" {
+			sb.WriteString("CS: " + msgs[i].Reply + "\n")
+		}
+	}
+
+	p := activePreset()
+	req := openai.ChatCompletionRequest{
+		Model: p.Model,
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "Ringkas percakapan CS berikut dalam 3 kalimat MAXIMAL berbahasa Indonesia. Tulis APA yang ditanyakan customer dan APA yang sudah dijawab/diberikan CS. JANGAN menambah informasi baru. Fokus ke: topik, keputusan, dan follow-up. Contoh output: \"Customer tanya harga iPhone 15. CS kirim price list. Customer belum memutuskan.\""},
+			{Role: openai.ChatMessageRoleUser, Content: sb.String()},
+		},
+		MaxTokens: 150, Temperature: 0.3,
+	}
+	resp, err := clientForPreset(p).CreateChatCompletion(context.Background(), req)
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Choices) == 0 {
+		return "", nil
+	}
+	return strings.TrimSpace(resp.Choices[0].Message.Content), nil
+}

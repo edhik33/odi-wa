@@ -35,6 +35,10 @@ type Agent struct {
 	BusinessEnd          string `gorm:"size:5;default:'21:00'" json:"business_end"`
 	AwayMessage          string `gorm:"type:text" json:"away_message"`
 
+	// Long-term memory: ringkasan percakapan sebelumnya (auto-generated oleh AI).
+	ConversationSummary string    `gorm:"type:text" json:"conversation_summary"`
+	LastSummaryAt       time.Time `json:"last_summary_at"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 

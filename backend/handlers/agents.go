@@ -185,6 +185,10 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		if agent.Tone != "" {
 			tone = agent.Tone
 		}
+		// Long-term memory: inject ringkasan percakapan sebelumnya (kalau ada).
+		if agent.ConversationSummary != "" {
+			prompt = "PERCAKAPAN SEBELUMNYA: " + agent.ConversationSummary + "\n\n" + prompt
+		}
 	}
 
 	// Simpan media ke disk dulu (kalau ada).
@@ -284,8 +288,8 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 
 	// 6. Jawaban AI (teks biasa atau media dengan caption -> AI menjawab captionnya).
 	var history []models.ChatHistory
-	database.DB.Where("agent_id = ? AND sender = ?", agentID, num).
-		Order("created_at desc").Limit(10).Find(&history)
+	database.DB.Where("agent_id = ? AND sender = ? AND created_at > ?", agentID, num, time.Now().AddDate(0, 0, -7)).
+		Order("created_at desc").Limit(20).Find(&history)
 	for i, j := 0, len(history)-1; i < j; i, j = i+1, j-1 {
 		history[i], history[j] = history[j], history[i]
 	}
@@ -304,6 +308,9 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 	sendChunked(agentID, sender, reply) // balasan panjang dipecah jadi beberapa bubble (lebih manusiawi)
 	logRow(displayText, reply)
 	incrementAIUsage(agent.TenantID) // hitung pemakaian kuota bulanan tenant
+
+	// Long-term memory: auto-summary setelah percakapan (jeda >30 menit).
+	go maybeSummarize(agent, num)
 }
 
 // sendChunked mengirim balasan AI dalam 1-3 bubble (per paragraf), masing-masing dengan
@@ -574,6 +581,40 @@ func UpdateAgent(c *gin.Context) {
 	}
 	database.DB.Save(&a)
 	c.JSON(200, gin.H{"data": a})
+}
+
+// maybeSummarize: trigger ringkasan percakapan kalau jeda >30 menit dari summary terakhir.
+// Dijalankan di background goroutine supaya tidak blocking reply ke user.
+func maybeSummarize(agent models.Agent, senderNum string) {
+	if time.Since(agent.LastSummaryAt) < 30*time.Minute {
+		return // belum waktunya
+	}
+	// Ambil 30 pesan terakhir untuk konteks ringkasan.
+	var msgs []models.ChatHistory
+	database.DB.Where("agent_id = ? AND sender = ?", agent.ID, senderNum).
+		Order("created_at desc").Limit(30).Find(&msgs)
+	if len(msgs) < 4 {
+		return // terlalu sedikit untuk diringkas
+	}
+	summary, err := services.SummarizeConversation(agent.ID, msgs)
+	if err != nil {
+		log.Printf("Summarize gagal (agent %d, %s): %v", agent.ID, senderNum, err)
+		return
+	}
+	// Merge dengan summary lama (kalau ada) -> prepend.
+	if agent.ConversationSummary != "" {
+		summary = summary + " | " + agent.ConversationSummary
+	}
+	// Potong max 300 karakter.
+	if len(summary) > 300 {
+		summary = summary[:300]
+	}
+	now := time.Now()
+	database.DB.Model(&agent).Updates(map[string]any{
+		"conversation_summary": summary,
+		"last_summary_at":      now,
+	})
+	log.Printf("Summarized (agent %d, %s): %s", agent.ID, senderNum, summary)
 }
 
 func DeleteAgent(c *gin.Context) {
