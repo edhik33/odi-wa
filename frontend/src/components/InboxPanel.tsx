@@ -197,7 +197,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
   return (
     <Box>
       <PageHeader title="Inbox"
-        subtitle="Semua percakapan pelanggan yang sudah dibalas AI muncul di sini. Kalau kamu yang balas, bot otomatis berhenti untuk kontak itu." />
+        subtitle="Semua percakapan pelanggan yang sudah dibalas AI muncul di sini. Kalau kamu yang balas, bot otomatis berhenti dan percakapan pindah ke menu Butuh CS." />
 
       <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ height: { md: 540 } }}>
         <Card sx={{ width: { xs: '100%', md: 280 }, flexShrink: 0, overflowY: 'auto' }}>

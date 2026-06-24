@@ -747,7 +747,7 @@ export default function Dashboard() {
           <Box>
             <Typography variant="h6" sx={{ mb: 1 }}>Butuh CS ({handoffs.length})</Typography>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Kontak yang mengirim media atau pertanyaan yang tidak bisa dijawab AI. Segera ditangani manual oleh CS.
+              Percakapan yang tidak bisa dijawab AI, atau yang kamu ambil alih dari Inbox. Tangani manual di sini sampai selesai.
             </Typography>
             {handoffs.length === 0 ? (
               <Paper variant="outlined" sx={{ p: 4, textAlign: 'center' }}>
