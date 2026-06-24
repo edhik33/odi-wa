@@ -195,11 +195,11 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
   if (isLoading) return <Box sx={{ display: 'flex', justifyContent: 'center', mt: 8 }}><CircularProgress /></Box>;
 
   return (
-    <Box>
+    <Box sx={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 }}>
       <PageHeader title="Inbox"
         subtitle="Semua percakapan pelanggan yang sudah dibalas AI muncul di sini. Kalau kamu yang balas, bot otomatis berhenti dan percakapan pindah ke menu Butuh CS." />
 
-      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ height: { md: 540 } }}>
+      <Stack direction={{ xs: 'column', md: 'row' }} spacing={1.5} sx={{ flex: 1, minHeight: 0 }}>
         <Card sx={{ width: { xs: '100%', md: 280 }, flexShrink: 0, overflowY: 'auto' }}>
           <List dense disablePadding>
             {contacts?.length === 0 && <Typography color="text.secondary" sx={{ p: 2 }}>Belum ada percakapan.</Typography>}
@@ -222,7 +222,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
           </List>
         </Card>
 
-        <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 380 }}>
+        <Card sx={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
           {!sender ? (
             <Box sx={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               <Typography color="text.secondary">Pilih kontak untuk melihat percakapan.</Typography>
