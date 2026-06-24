@@ -106,14 +106,21 @@ func InboxContacts(c *gin.Context) {
 		return
 	}
 	type contactRow struct {
-		Sender string    `json:"sender"`
-		LastAt time.Time `json:"last_at"`
+		Sender  string    `json:"sender"`
+		LastAt  time.Time `json:"last_at"`
+		LastMsg string    `json:"last_msg"`
 	}
 	var rows []contactRow
-	database.DB.Model(&models.ChatHistory{}).
-		Select("sender, MAX(created_at) as last_at").
-		Where("agent_id = ?", id).
-		Group("sender").Order("last_at DESC").Limit(100).Scan(&rows)
+	database.DB.Raw(`
+		SELECT ch.sender, ch.created_at as last_at, COALESCE(ch.message, ch.reply) as last_msg
+		FROM chat_histories ch
+		INNER JOIN (
+			SELECT sender, MAX(created_at) as max_at
+			FROM chat_histories WHERE agent_id = ? GROUP BY sender
+		) latest ON ch.sender = latest.sender AND ch.created_at = latest.max_at
+		WHERE ch.agent_id = ?
+		ORDER BY last_at DESC LIMIT 100
+	`, id, id).Scan(&rows)
 
 	var hs []models.Handoff
 	database.DB.Where("agent_id = ?", id).Find(&hs)
@@ -125,7 +132,11 @@ func InboxContacts(c *gin.Context) {
 	names := contactNames(id)
 	out := make([]gin.H, 0, len(rows))
 	for _, r := range rows {
-		out = append(out, gin.H{"sender": r.Sender, "last_at": r.LastAt, "needs_human": needsHuman[r.Sender], "name": names[r.Sender]})
+		msg := r.LastMsg
+		if len(msg) > 60 {
+			msg = msg[:60] + "…"
+		}
+		out = append(out, gin.H{"sender": r.Sender, "last_at": r.LastAt, "last_msg": msg, "needs_human": needsHuman[r.Sender], "name": names[r.Sender]})
 	}
 	c.JSON(200, gin.H{"data": out})
 }

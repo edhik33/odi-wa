@@ -176,7 +176,11 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                 </Avatar>
                 <ListItemText
                   primary={<Typography sx={{ fontWeight: 600, fontSize: 14 }}>{ct.name || `+${ct.sender}`}</Typography>}
-                  secondary={`${ct.name ? `+${ct.sender} · ` : ''}${new Date(ct.last_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                  secondary={
+                    <Typography variant="caption" color="text.secondary" sx={{ display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 180, mt: 0.25 }}>
+                      {(ct as any).last_msg || `${ct.name ? `+${ct.sender} · ` : ''}${new Date(ct.last_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}`}
+                    </Typography>
+                  }
                 />
                 {ct.needs_human && <Chip label="Perlu kamu" size="small" color="warning" />}
               </ListItemButton>
