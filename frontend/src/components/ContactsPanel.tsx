@@ -112,9 +112,12 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       )}
 
       {contacts.length === 0 ? (
-        <Alert severity="info">
-          {q || tag ? 'Tidak ada kontak yang cocok dengan filter.' : 'Belum ada kontak tersimpan. Kontak akan terisi otomatis saat ada yang chat, atau tambahkan manual.'}
-        </Alert>
+        <EmptyState
+          icon={<PeopleIcon sx={{ fontSize: 48 }} />}
+          title={q || tag ? 'Tidak ada kontak yang cocok' : 'Belum ada kontak'}
+          description={q || tag ? 'Tidak ada kontak yang cocok dengan filter.' : 'Kontak akan terisi otomatis saat pelanggan chat, atau kamu bisa tambahkan manual.'}
+          action={!q && !tag ? { label: 'Tambah Kontak', onClick: () => setAddOpen(true) } : undefined}
+        />
       ) : (
         <Stack spacing={1}>
           {contacts.map(ct => (
