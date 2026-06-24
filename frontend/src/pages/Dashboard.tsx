@@ -107,6 +107,8 @@ export default function Dashboard() {
   const [newTags, setNewTags] = useState('');
   const [genText, setGenText] = useState('');
   const [genCount, setGenCount] = useState(5);
+  const [tpl, setTpl] = useState({ name: '', price: '', specs: '', warranty: '', order: '', shipping: '', payment: '', usp: '', notes: '' });
+  const [showTpl, setShowTpl] = useState(false);
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
@@ -495,19 +497,42 @@ export default function Dashboard() {
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card sx={{ height: '100%', borderColor: 'primary.main' }}>
                   <CardContent>
-                    <Typography variant="subtitle2" sx={{ mb: 0.75 }}>
-                      <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
-                      Generate dengan AI
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block' }}>
-                      Paste teks/artikel, AI buatkan Q&A + tags otomatis.
-                    </Typography>
-                    <TextField multiline rows={3} fullWidth size="small" value={genText}
-                      onChange={e => { setGenText(e.target.value); if (knowledgeErrors.genText) setKnowledgeErrors(p => ({...p, genText: ''})); }}
-                      placeholder="Paste teks di sini..."
-                      error={!!knowledgeErrors.genText} helperText={knowledgeErrors.genText}
-                      sx={{ mb: 0.75 }} />
-                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                      <Typography variant="subtitle2">
+                        <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
+                        Generate dengan AI
+                      </Typography>
+                      <Chip size="small" label={showTpl ? 'Template' : 'Free Text'} color={showTpl ? 'primary' : 'default'}
+                        onClick={() => setShowTpl(!showTpl)} sx={{ ml: 'auto' }} />
+                    </Stack>
+
+                    {showTpl ? (
+                      <Stack spacing={0.8}>
+                        {[
+                          ['Nama Produk', 'name', 'iPhone 15, Template Canva, ...'],
+                          ['Harga', 'price', 'Rp 12.000.000 (128GB)'],
+                          ['Spesifikasi', 'specs', 'Chip A16, layar 6.1, kamera 48MP'],
+                          ['Garansi', 'warranty', '1 tahun resmi / update gratis 3 bulan'],
+                          ['Cara Order', 'order', 'WA ke 08xxx / Transfer + konfirmasi'],
+                          ['Pengiriman', 'shipping', 'GoSend 1-2 jam / Email instan'],
+                          ['Pembayaran', 'payment', 'Transfer BCA, QRIS, GoPay'],
+                          ['Keunggulan', 'usp', 'USB-C pertama, Dynamic Island / Tinggal edit'],
+                          ['Catatan', 'notes', 'Stok terbatas / Bukan file PSD'],
+                        ].map(([label, key, placeholder]) => (
+                          <TextField key={key} size="small" label={label} fullWidth
+                            value={(tpl as any)[key]} placeholder={placeholder}
+                            onChange={e => setTpl(p => ({ ...p, [key]: e.target.value }))}
+                          />
+                        ))}
+                      </Stack>
+                    ) : (
+                      <TextField multiline rows={5} fullWidth size="small" value={genText}
+                        onChange={e => setGenText(e.target.value)}
+                        placeholder="Paste teks atau artikel di sini..."
+                        sx={{ mb: 1 }} />
+                    )}
+
+                    <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
                       <TextField type="number" size="small" label="Jumlah" value={genCount}
                         onChange={e => setGenCount(Number(e.target.value))} sx={{ width: 80 }} />
                       <Button variant="contained" size="small" onClick={generateKnowledge} disabled={generateKnowledgeMut.isPending}
