@@ -13,6 +13,8 @@ import (
 	"wa-assistant/backend/services"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // BillingChannels = daftar metode pembayaran aktif dari Tripay.
@@ -43,18 +45,24 @@ func Checkout(c *gin.Context) {
 	}
 
 	var owner models.User
-	database.DB.Where("tenant_id = ? AND role = ?", tid, "owner").First(&owner)
+	if err := database.DB.Where("tenant_id = ? AND role = ?", tid, "owner").First(&owner).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		c.JSON(500, gin.H{"error": "Gagal membaca owner tenant"})
+		return
+	}
 	email := owner.Email
 	if email == "" {
 		email = fmt.Sprintf("tenant%d@wa-assistant.local", tid)
 	}
 
-	merchantRef := fmt.Sprintf("WAI-%d-%d", tid, time.Now().Unix())
+	merchantRef := fmt.Sprintf("WAI-%d-%d", tid, time.Now().UnixNano())
 	invoice := models.Invoice{
 		TenantID: tid, PlanID: plan.ID, MerchantRef: merchantRef,
 		Amount: plan.Price, Status: "pending", PaymentMethod: req.Method,
 	}
-	_ = database.DB.Create(&invoice).Error
+	if err := database.DB.Create(&invoice).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Gagal membuat invoice"})
+		return
+	}
 
 	result, err := services.CreateTripayTransaction(services.TripayTxParams{
 		Method:        req.Method,
@@ -66,15 +74,21 @@ func Checkout(c *gin.Context) {
 		ReturnURL:     config.Env("TRIPAY_RETURN_URL", ""),
 	})
 	if err != nil {
-		invoice.Status = "failed"
-		_ = database.DB.Save(&invoice).Error
+		if saveErr := database.DB.Model(&invoice).Updates(map[string]any{"status": "failed"}).Error; saveErr != nil {
+			billingError(c, fmt.Errorf("%w; gagal update invoice failed: %v", err, saveErr))
+			return
+		}
 		billingError(c, err)
 		return
 	}
 
-	invoice.TripayReference = result.Reference
-	invoice.CheckoutURL = result.CheckoutURL
-	_ = database.DB.Save(&invoice).Error
+	if err := database.DB.Model(&invoice).Updates(map[string]any{
+		"tripay_reference": result.Reference,
+		"checkout_url":     result.CheckoutURL,
+	}).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Transaksi Tripay dibuat, tetapi invoice gagal disimpan. Hubungi admin dengan merchant_ref: " + merchantRef})
+		return
+	}
 
 	c.JSON(200, gin.H{"data": gin.H{
 		"checkout_url": result.CheckoutURL,
@@ -85,7 +99,11 @@ func Checkout(c *gin.Context) {
 
 // TripayCallback = webhook Tripay saat status pembayaran berubah (signature diverifikasi).
 func TripayCallback(c *gin.Context) {
-	rawBody, _ := io.ReadAll(c.Request.Body)
+	rawBody, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		c.JSON(400, gin.H{"success": false, "message": "Bad payload"})
+		return
+	}
 	if !services.VerifyTripayCallback(rawBody, c.GetHeader("X-Callback-Signature")) {
 		c.JSON(401, gin.H{"success": false, "message": "Invalid signature"})
 		return
@@ -95,49 +113,83 @@ func TripayCallback(c *gin.Context) {
 		MerchantRef string `json:"merchant_ref"`
 		Reference   string `json:"reference"`
 		Status      string `json:"status"` // PAID, EXPIRED, FAILED, UNPAID
+		TotalAmount int64  `json:"total_amount"`
+		Amount      int64  `json:"amount"`
 	}
-	if err := json.Unmarshal(rawBody, &payload); err != nil {
+	if err := json.Unmarshal(rawBody, &payload); err != nil || payload.MerchantRef == "" {
 		c.JSON(400, gin.H{"success": false, "message": "Bad payload"})
 		return
 	}
 
-	var invoice models.Invoice
-	if database.DB.Where("merchant_ref = ?", payload.MerchantRef).First(&invoice).Error != nil {
-		c.JSON(404, gin.H{"success": false, "message": "Invoice not found"})
-		return
-	}
-	if invoice.Status == "paid" { // idempoten: callback bisa terkirim lebih dari sekali
-		c.JSON(200, gin.H{"success": true})
-		return
-	}
+	err = database.DB.Transaction(func(tx *gorm.DB) error {
+		var invoice models.Invoice
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("merchant_ref = ?", payload.MerchantRef).First(&invoice).Error; err != nil {
+			return err
+		}
+		if invoice.TripayReference != "" && payload.Reference != "" && invoice.TripayReference != payload.Reference {
+			return fmt.Errorf("callback reference mismatch: invoice=%s payload=%s", invoice.TripayReference, payload.Reference)
+		}
+		if amount := firstPositiveInt64(payload.TotalAmount, payload.Amount); amount > 0 && amount != invoice.Amount {
+			return fmt.Errorf("callback amount mismatch: invoice=%d payload=%d", invoice.Amount, amount)
+		}
 
-	switch payload.Status {
-	case "PAID":
-		now := time.Now()
-		invoice.Status = "paid"
-		invoice.PaidAt = &now
-		_ = database.DB.Save(&invoice).Error
-		activateSubscription(invoice.TenantID, invoice.PlanID)
-	case "EXPIRED":
-		invoice.Status = "expired"
-		_ = database.DB.Save(&invoice).Error
-	case "FAILED":
-		invoice.Status = "failed"
-		_ = database.DB.Save(&invoice).Error
+		// Idempotent: callback bisa dikirim lebih dari sekali. Status final tidak diproses ulang.
+		if invoice.Status == "paid" || invoice.Status == "expired" || invoice.Status == "failed" {
+			return nil
+		}
+
+		switch payload.Status {
+		case "PAID":
+			now := time.Now()
+			invoice.Status = "paid"
+			invoice.PaidAt = &now
+			if err := tx.Save(&invoice).Error; err != nil {
+				return err
+			}
+			return activateSubscriptionTx(tx, invoice.TenantID, invoice.PlanID)
+		case "EXPIRED":
+			invoice.Status = "expired"
+			return tx.Save(&invoice).Error
+		case "FAILED":
+			invoice.Status = "failed"
+			return tx.Save(&invoice).Error
+		case "UNPAID", "":
+			return nil
+		default:
+			return fmt.Errorf("unknown Tripay status: %s", payload.Status)
+		}
+	})
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			c.JSON(404, gin.H{"success": false, "message": "Invoice not found"})
+			return
+		}
+		c.JSON(400, gin.H{"success": false, "message": err.Error()})
+		return
 	}
 	c.JSON(200, gin.H{"success": true})
 }
 
 // activateSubscription mengaktifkan / memperpanjang langganan tenant setelah pembayaran lunas.
-func activateSubscription(tenantID, planID uint) {
+func activateSubscription(tenantID, planID uint) error {
+	return database.DB.Transaction(func(tx *gorm.DB) error {
+		return activateSubscriptionTx(tx, tenantID, planID)
+	})
+}
+
+func activateSubscriptionTx(tx *gorm.DB, tenantID, planID uint) error {
 	var plan models.Plan
-	if database.DB.First(&plan, planID).Error != nil {
-		return
+	if err := tx.First(&plan, planID).Error; err != nil {
+		return err
 	}
 	now := time.Now()
 
 	var sub models.Subscription
-	found := database.DB.Where("tenant_id = ?", tenantID).First(&sub).Error == nil
+	err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("tenant_id = ?", tenantID).First(&sub).Error
+	found := err == nil
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
 
 	// Perpanjang dari sisa masa aktif bila masih berjalan, kalau tidak dari sekarang.
 	base := now
@@ -156,15 +208,19 @@ func activateSubscription(tenantID, planID uint) {
 		if sub.StartsAt.IsZero() {
 			sub.StartsAt = now
 		}
-		_ = database.DB.Save(&sub).Error
+		if err := tx.Save(&sub).Error; err != nil {
+			return err
+		}
 	} else {
-		_ = database.DB.Create(&models.Subscription{
+		if err := tx.Create(&models.Subscription{
 			TenantID: tenantID, PlanID: planID, Status: "active", StartsAt: now, EndsAt: ends,
-		})
+		}).Error; err != nil {
+			return err
+		}
 	}
 
-	database.DB.Model(&models.Tenant{}).Where("id = ?", tenantID).
-		Updates(map[string]any{"status": models.TenantActive, "plan_id": planID})
+	return tx.Model(&models.Tenant{}).Where("id = ?", tenantID).
+		Updates(map[string]any{"status": models.TenantActive, "plan_id": planID}).Error
 }
 
 // Invoices = riwayat tagihan tenant.
@@ -180,4 +236,13 @@ func billingError(c *gin.Context, err error) {
 		return
 	}
 	c.JSON(502, gin.H{"error": err.Error()})
+}
+
+func firstPositiveInt64(values ...int64) int64 {
+	for _, v := range values {
+		if v > 0 {
+			return v
+		}
+	}
+	return 0
 }
