@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Button, Chip, CircularProgress, TextField,
   Stack, IconButton, Paper, Grid, Select, MenuItem, FormControl, InputLabel, Divider,
   Switch, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions,
-  Badge, Popover, Avatar,
+  Badge, Popover, Avatar, ToggleButtonGroup, ToggleButton,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
@@ -543,8 +543,11 @@ export default function Dashboard() {
                         <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
                         Generate dengan AI
                       </Typography>
-                      <Chip size="small" label={showTpl ? 'Template' : 'Free Text'} color={showTpl ? 'primary' : 'default'}
-                        onClick={() => setShowTpl(!showTpl)} sx={{ ml: 'auto' }} />
+                      <ToggleButtonGroup size="small" value={showTpl ? 'tpl' : 'free'} exclusive
+                        onChange={() => setShowTpl(!showTpl)} sx={{ ml: 'auto' }}>
+                        <ToggleButton value="free" sx={{ px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}>Free Text</ToggleButton>
+                        <ToggleButton value="tpl" sx={{ px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}>Template</ToggleButton>
+                      </ToggleButtonGroup>
                     </Stack>
 
                     {showTpl ? (
@@ -569,7 +572,7 @@ export default function Dashboard() {
                     ) : (
                       <TextField multiline rows={5} fullWidth size="small" value={genText}
                         onChange={e => setGenText(e.target.value)}
-                        placeholder="Paste teks atau artikel di sini..."
+                        placeholder="Tulis atau paste teks tentang produk/layanan kamu. AI akan mengubahnya jadi tanya-jawab otomatis..."
                         sx={{ mb: 1 }} />
                     )}
 
