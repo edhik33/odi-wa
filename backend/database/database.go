@@ -62,7 +62,7 @@ func Init() {
 	}
 
 	if err := DB.AutoMigrate(
-		&models.User{}, &models.Agent{}, &models.ChatHistory{}, &models.Setting{},
+		&models.User{}, &models.LoginThrottle{}, &models.Agent{}, &models.ChatHistory{}, &models.Setting{},
 		&models.Knowledge{}, &models.Handoff{}, &models.Contact{},
 		&models.Plan{}, &models.Tenant{}, &models.Subscription{}, &models.Invoice{}, &models.AIUsage{},
 		&models.Broadcast{}, &models.BroadcastRecipient{}, &models.OptOut{},
