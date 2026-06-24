@@ -54,7 +54,7 @@ func Checkout(c *gin.Context) {
 		TenantID: tid, PlanID: plan.ID, MerchantRef: merchantRef,
 		Amount: plan.Price, Status: "pending", PaymentMethod: req.Method,
 	}
-	if err := database.DB.Create(&invoice).Error; err != nil { log.Printf("Gagal Create invoice: %v", err) }
+	_ = database.DB.Create(&invoice).Error
 
 	result, err := services.CreateTripayTransaction(services.TripayTxParams{
 		Method:        req.Method,
@@ -74,7 +74,7 @@ func Checkout(c *gin.Context) {
 
 	invoice.TripayReference = result.Reference
 	invoice.CheckoutURL = result.CheckoutURL
-	database.DB.Save(&invoice)
+	_ = database.DB.Save(&invoice).Error
 
 	c.JSON(200, gin.H{"data": gin.H{
 		"checkout_url": result.CheckoutURL,
@@ -158,7 +158,7 @@ func activateSubscription(tenantID, planID uint) {
 		}
 		_ = database.DB.Save(&sub).Error
 	} else {
-		if err := database.DB.Create(&models.Subscription{
+		_ = database.DB.Create(&models.Subscription{
 			TenantID: tenantID, PlanID: planID, Status: "active", StartsAt: now, EndsAt: ends,
 		})
 	}

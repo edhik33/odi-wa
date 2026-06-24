@@ -163,7 +163,7 @@ func fireScheduled(s models.ScheduledMessage) {
 		recipients = append(recipients, models.BroadcastRecipient{Number: r.Number, Name: r.Name, Status: "pending"})
 	}
 	b.Total = len(recipients)
-	if err := database.DB.Create(&b).Error; err != nil { log.Printf("Gagal Create broadcast: %v", err); return }
+	_ = database.DB.Create(&b).Error
 	for i := range recipients {
 		recipients[i].BroadcastID = b.ID
 	}
