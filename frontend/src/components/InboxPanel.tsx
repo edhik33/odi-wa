@@ -263,8 +263,10 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
     if (m.media_type === 'document') return '📄 ' + (m.file_name || 'Dokumen');
     return '📷 Media';
   })(m) })}>
+                        {m.revoked ? <Typography sx={{ fontStyle: "italic", color: "text.disabled" }}>Pesan ini dihapus</Typography> : <>
                         {m.media_type && !m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.message && <span>{m.message}</span>}
+                        </>}
                       </Bubble>
                     )}
                     {/* Balasan CS / Bot (kanan) */}
@@ -279,8 +281,10 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                         replyTo={m.reply_text || (m.reply_to ? (convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.reply || convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.message || '💬 Pesan...') : '')}
                         onReply={() => setReplyTo({ id: m.wa_msg_id || String(m.id), text: m.reply || m.message || '📷 Media' })}
                       >
+                        {m.revoked ? <Typography sx={{ fontStyle: "italic", color: "text.disabled" }}>Pesan ini dihapus</Typography> : <>
                         {m.media_type && m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.reply && <span>{m.reply}</span>}
+                        </>}
                       </Bubble>
                       {m.from_human && m.wa_msg_id && (
                         <IconButton size="small" onClick={() => revokeMsg.mutate({ msgId: m.wa_msg_id || String(m.id), to: sender })}

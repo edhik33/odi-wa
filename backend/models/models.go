@@ -41,6 +41,7 @@ type ChatHistory struct {
 	WAMsgID   string    `gorm:"size:64" json:"wa_msg_id"`
 	ReplyTo   string    `json:"reply_to"`
 	ReplyText string    `gorm:"size:200" json:"reply_text"`
+	Revoked   bool      `gorm:"default:false" json:"revoked"`
 	CreatedAt time.Time `json:"created_at"`
 }
 

@@ -240,6 +240,8 @@ func RevokeMessage(c *gin.Context) {
 		c.JSON(502, gin.H{"error": err.Error()})
 		return
 	}
+	// Tandai pesan sebagai revoked di DB (tampilkan "Pesan ini dihapus" di Inbox)
+	database.DB.Model(&models.ChatHistory{}).Where("wa_msg_id = ?", msgID).Update("revoked", true)
 	c.JSON(200, gin.H{"ok": true})
 }
 
