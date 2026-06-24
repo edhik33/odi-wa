@@ -78,10 +78,7 @@ export default function Login() {
             onChange={e => { setPassword(e.target.value); if (errors.password) setErrors(p => ({...p, password: ''})); }}
             error={!!errors.password} helperText={errors.password}
             sx={{ mb: 2 }} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-            <div className="cf-turnstile" data-sitekey={window.__TURNSTILE_SITE_KEY__ || ''} data-callback={setTurnstile} data-action="login" />
-          </Box>
-          <Button fullWidth variant="contained" onClick={handleLogin} disabled={loading || cooldown > 0 || !turnstileToken}
+          <Button fullWidth variant="contained" onClick={handleLogin} disabled={loading || cooldown > 0}
             startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
             sx={{ py: 1.5, fontWeight: 700 }}>
             {loading ? 'Masuk…' : cooldown > 0 ? `Coba lagi ${cooldown}d` : 'Masuk'}

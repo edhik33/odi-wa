@@ -89,10 +89,7 @@ export default function Register() {
           <TextField fullWidth label="Password" type="password" value={form.password} onChange={set('password')} disabled={loading}
             error={!!errors.password} helperText={errors.password}
             sx={{ mb: 2 }} onKeyDown={e => e.key === 'Enter' && handleRegister()} />
-          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
-            <div className="cf-turnstile" data-sitekey={window.__TURNSTILE_SITE_KEY__ || ''} data-callback={setTurnstile} />
-          </Box>
-          <Button fullWidth variant="contained" onClick={handleRegister} disabled={loading || !turnstileToken} sx={{ py: 1.5, fontWeight: 700 }}>
+          <Button fullWidth variant="contained" onClick={handleRegister} disabled={loading} sx={{ py: 1.5, fontWeight: 700 }}>
             {loading ? 'Mendaftar…' : 'Daftar Sekarang'}
           </Button>
           <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
