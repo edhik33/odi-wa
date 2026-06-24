@@ -26,24 +26,23 @@ function fmtTime(ts?: string) {
   return new Date(ts).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
 }
 
-function Bubble({ side, bg, color, tag, time, children }: {
-  side: 'left' | 'right'; bg: string; color?: string; tag?: string; time?: string; children: React.ReactNode;
+function Bubble({ side, bg, color, tag, time, name, children }: {
+  side: 'left' | 'right'; bg: string; color?: string; tag?: string; time?: string; name?: string; children: React.ReactNode;
 }) {
   const isLeft = side === 'left';
+  const initial = name ? name.charAt(0).toUpperCase() : (tag === 'CS' ? 'CS' : '?');
   return (
     <Stack direction="row" spacing={0.75} sx={{
       alignSelf: isLeft ? 'flex-start' : 'flex-end',
       maxWidth: { xs: '88%', md: '74%' },
       flexDirection: isLeft ? 'row' : 'row-reverse',
     }}>
-      {/* Avatar */}
       <Avatar sx={{
         width: 28, height: 28, fontSize: 12, fontWeight: 700, flexShrink: 0,
         bgcolor: tag === 'Bot' ? '#25D366' : tag === 'CS' ? 'primary.main' : 'grey.400',
         alignSelf: 'flex-end',
       }}>
-        {tag === 'Bot' ? <SmartToyIcon sx={{ fontSize: 16 }} /> :
-         tag === 'CS' ? 'CS' : (children?.toString().charAt(0) || '?')}
+        {tag === 'Bot' ? <SmartToyIcon sx={{ fontSize: 16 }} /> : initial}
       </Avatar>
 
       <Box>
@@ -108,6 +107,7 @@ export default function InboxPanel({ agentId, seed }: { agentId: number; seed?: 
   const [file, setFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const chatRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -115,7 +115,13 @@ export default function InboxPanel({ agentId, seed }: { agentId: number; seed?: 
   }, [contacts, sender]);
 
   useEffect(() => { if (seed?.value) setSender(seed.value); }, [seed?.n]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [convo]);
+  useEffect(() => {
+    // Auto-scroll HANYA kalau user di dekat bawah (dalam 80px dari bottom).
+    const el = chatRef.current;
+    if (!el) return;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [convo]);
 
   const busy = sendMsg.isPending || sendMedia.isPending;
   const selectedName = contacts?.find(ct => ct.sender === sender)?.name;
@@ -184,12 +190,12 @@ export default function InboxPanel({ agentId, seed }: { agentId: number; seed?: 
                 )}
               </Stack>
               <Divider />
-              <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1, bgcolor: '#f7f9fa' }}>
+              <Box ref={chatRef} sx={{ flex: 1, overflowY: 'auto', p: 1.5, display: 'flex', flexDirection: 'column', gap: 1, bgcolor: '#f7f9fa' }}>
                 {convo?.data.map(m => (
                   <Box key={m.id} sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}>
                     {/* Pesan dari pelanggan (kiri) */}
                     {(m.message || (m.media_type && !m.from_human)) && (
-                      <Bubble side="left" bg="#fff" time={fmtTime(m.created_at)}>
+                      <Bubble side="left" bg="#fff" time={fmtTime(m.created_at)} name={selectedName || sender}>
                         {m.media_type && !m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.message && <span>{m.message}</span>}
                       </Bubble>
