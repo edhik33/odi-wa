@@ -758,7 +758,7 @@ func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...stri
 	}
 	if len(replyToID) > 0 && replyToID[0] != "" {
 		msg.ContextInfo = &waProto.ContextInfo{
-			StanzaId:      proto.String(replyToID[0]),
+			StanzaID:      proto.String(replyToID[0]),
 			Participant:   proto.String(to.String()),
 			QuotedMessage: &waProto.Message{Conversation: proto.String(message)},
 		}
