@@ -449,48 +449,51 @@ export default function Dashboard() {
             </Card>
 
             <Card sx={{ mb: 1.5 }}>
-              <CardContent sx={{ pb: 1.5 }}>
-                <Grid container spacing={1.5} sx={{ alignItems: 'center' }}>
-                  <Grid size={{ xs: 12, sm: 7 }}>
-                    <Stack spacing={1.25}>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 0.25, display: 'block' }}>
-                          Langganan
-                        </Typography>
-                        <UsageCard />
-                      </Box>
-                      <Box>
-                        <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 0.25, display: 'block' }}>
-                          WhatsApp
-                        </Typography>
-                        <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-                          <Chip label={sl} color={sc} size="small" />
-                          {status === 'connected' && waNumber ? (
-                            <Typography variant="body2" sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                              {waName || 'Tanpa nama'} · +{waNumber}
-                            </Typography>
-                          ) : (
-                            <Typography variant="body2" color="text.secondary">Belum tersambung</Typography>
-                          )}
-                        </Stack>
-                      </Box>
-                    </Stack>
-                  </Grid>
-                  <Grid size={{ xs: 12, sm: 5 }}>
-                    <Stack direction={{ xs: 'row', sm: 'column' }} spacing={1} sx={{ alignItems: { xs: 'center', sm: 'flex-end' } }}>
-                      <Button variant="contained" size="small" onClick={connect} disabled={connectMut.isPending}
-                        startIcon={connectMut.isPending ? <CircularProgress size={14} /> : <QrCodeIcon />}>
-                        {status === 'connected' ? 'Reconnect' : 'Connect'}
-                      </Button>
-                      {status === 'connected' && (
-                        <Button variant="outlined" size="small" color="error" onClick={disconnectWA} disabled={disconnectMut.isPending}
-                          startIcon={disconnectMut.isPending ? <CircularProgress size={14} /> : <LogoutIcon />}>
-                          Putuskan
-                        </Button>
+              <CardContent sx={{ pb: 1, '&:last-child': { pb: 1 } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 0.5, display: 'block' }}>
+                  Langganan
+                </Typography>
+                <UsageCard />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent sx={{ pb: 1.5, '&:last-child': { pb: 1.5 } }}>
+                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block' }}>
+                  WhatsApp
+                </Typography>
+                <Stack spacing={1.25}>
+                  <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+                    <Box sx={{ width: 10, height: 10, borderRadius: '50%', bgcolor: status === 'connected' ? '#25D366' : status === 'qr' || status === 'connecting' ? '#ffa726' : '#bdbdbd', flexShrink: 0 }} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      {status === 'connected' && waNumber ? (
+                        <>
+                          <Typography variant="body2" sx={{ fontWeight: 600, lineHeight: 1.3 }}>
+                            {waName || 'Tanpa nama'}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            +{waNumber}
+                          </Typography>
+                        </>
+                      ) : (
+                        <Typography variant="body2" color="text.secondary">Belum tersambung</Typography>
                       )}
-                    </Stack>
-                  </Grid>
-                </Grid>
+                    </Box>
+                    <Chip label={sl} color={sc} size="small" sx={{ fontWeight: 600 }} />
+                  </Stack>
+                  <Stack direction="row" spacing={1}>
+                    <Button variant="contained" size="small" onClick={connect} disabled={connectMut.isPending}
+                      startIcon={connectMut.isPending ? <CircularProgress size={14} /> : <QrCodeIcon />}>
+                      {status === 'connected' ? 'Reconnect' : 'Connect'}
+                    </Button>
+                    {status === 'connected' && (
+                      <Button variant="outlined" size="small" color="error" onClick={disconnectWA} disabled={disconnectMut.isPending}
+                        startIcon={disconnectMut.isPending ? <CircularProgress size={14} /> : <LogoutIcon />}>
+                        Putuskan
+                      </Button>
+                    )}
+                  </Stack>
+                </Stack>
               </CardContent>
             </Card>
           </Box>
