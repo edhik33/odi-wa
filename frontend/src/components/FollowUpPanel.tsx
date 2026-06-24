@@ -16,6 +16,7 @@ import type { FollowUp } from '../types';
 import { normalizePhone } from '../types';
 import { swalConfirm, swalAlert } from '../services/swal';
 import PageHeader from './PageHeader';
+import EmptyState from './common/EmptyState';
 import WhatsAppEditor from './WhatsAppEditor';
 import TemplatePicker from './TemplatePicker';
 import RecipientField from './RecipientField';
@@ -123,7 +124,13 @@ export default function FollowUpPanel({ agentId }: { agentId: number }) {
         action={<Button variant="contained" startIcon={<AddIcon />} onClick={openNew}>Buat Urutan</Button>} />
 
       {(!flows || flows.length === 0) ? (
-        <Alert severity="info">Belum ada urutan follow-up. Contoh: H+0 ucapan terima kasih, H+1 tips pakai produk, H+3 tawarkan repeat order. Klik "Buat Urutan".</Alert>
+        <EmptyState
+          icon={<ScheduleSendIcon sx={{ fontSize: 48 }} />}
+          title="Belum ada urutan follow-up"
+          description="Jadwalkan pesan otomatis untuk menjaga hubungan dengan pelanggan. Contoh: H+0 ucapan terima kasih, H+3 tips produk."
+          actionLabel="Buat Urutan"
+          onAction={() => setOpen(true)}
+        />
       ) : (
         <Stack spacing={1}>
           {flows.map(fu => (
