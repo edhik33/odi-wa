@@ -17,14 +17,16 @@ import (
 var jwtSecret = []byte(config.Env("JWT_SECRET", "wa-assistant-secret-change-me"))
 
 const (
-	loginWindow          = 10 * time.Minute
-	loginLockDuration    = 10 * time.Minute
 	loginMaxPairFailures = 5
 	loginMaxIPFailures   = 25
 	loginGenericError    = "Login belum berhasil"
 )
 
+// Durasi yang bisa diatur via env (default sama seperti sebelumnya).
 var (
+	loginWindow       = time.Duration(config.EnvInt("LOGIN_WINDOW_MIN", 10)) * time.Minute
+	loginLockDuration = time.Duration(config.EnvInt("LOGIN_LOCK_MIN", 10)) * time.Minute
+
 	loginThrottleMu sync.Mutex
 	loginThrottle   = map[string]*loginThrottleEntry{}
 	dummyLoginHash  = []byte("$2a$10$QEUEZpKWWd3xV1qX7Q9BceA5.CgHCMOaOy3MpF8M/OIWYK8MKioJm")
@@ -41,9 +43,30 @@ type loginThrottleKey struct {
 	max int
 }
 
+// CORS membatasi origin lewat env CORS_ALLOWED_ORIGINS (daftar dipisah koma).
+// Default "*" (longgar) untuk dev; di produksi set ke origin asli, mis. "http://103.181.143.107:8080".
 func CORS() gin.HandlerFunc {
+	allowed := config.Env("CORS_ALLOWED_ORIGINS", "*")
+	var origins []string
+	if allowed != "*" {
+		for _, o := range strings.Split(allowed, ",") {
+			if o = strings.TrimSpace(o); o != "" {
+				origins = append(origins, o)
+			}
+		}
+	}
 	return func(c *gin.Context) {
-		c.Header("Access-Control-Allow-Origin", "*")
+		if allowed == "*" {
+			c.Header("Access-Control-Allow-Origin", "*")
+		} else if origin := c.GetHeader("Origin"); origin != "" {
+			for _, o := range origins {
+				if origin == o {
+					c.Header("Access-Control-Allow-Origin", origin)
+					c.Header("Vary", "Origin")
+					break
+				}
+			}
+		}
 		c.Header("Access-Control-Allow-Methods", "GET,POST,PUT,DELETE,OPTIONS")
 		c.Header("Access-Control-Allow-Headers", "Content-Type,Authorization")
 		if c.Request.Method == "OPTIONS" {
@@ -132,7 +155,7 @@ func issueToken(u models.User) string {
 		"user_id":        u.ID,
 		"role":           u.Role,
 		"is_super_admin": u.IsSuperAdmin,
-		"exp":            time.Now().Add(24 * time.Hour).Unix(),
+		"exp":            time.Now().Add(time.Duration(config.EnvInt("TOKEN_TTL_HOURS", 24)) * time.Hour).Unix(),
 	}
 	if u.TenantID != nil {
 		claims["tenant_id"] = *u.TenantID
@@ -147,7 +170,7 @@ func issueMediaToken(tenantID uint) string {
 	claims := jwt.MapClaims{
 		"tenant_id": tenantID,
 		"scope":     "media",
-		"exp":       time.Now().Add(30 * time.Minute).Unix(),
+		"exp":       time.Now().Add(time.Duration(config.EnvInt("MEDIA_TOKEN_TTL_MIN", 30)) * time.Minute).Unix(),
 	}
 	token, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString(jwtSecret)
 	return token
@@ -226,6 +249,24 @@ func clearLoginPairThrottle(ip, username string) {
 	loginThrottleMu.Lock()
 	delete(loginThrottle, "pair:"+ip+":"+username)
 	loginThrottleMu.Unlock()
+}
+
+// StartLoginThrottleSweeper menghapus entry throttle yang sudah kadaluarsa secara berkala,
+// supaya map tidak tumbuh tanpa batas saat diserang banyak IP/username unik (botnet).
+func StartLoginThrottleSweeper() {
+	go func() {
+		t := time.NewTicker(loginWindow)
+		for range t.C {
+			now := time.Now()
+			loginThrottleMu.Lock()
+			for k, e := range loginThrottle {
+				if now.Sub(e.firstSeen) > loginWindow && now.After(e.lockedUntil) {
+					delete(loginThrottle, k)
+				}
+			}
+			loginThrottleMu.Unlock()
+		}
+	}()
 }
 
 func throttleLogin(c *gin.Context, wait time.Duration) {

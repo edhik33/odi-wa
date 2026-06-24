@@ -1,7 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
@@ -9,12 +14,10 @@ import (
 	"wa-assistant/backend/services"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
 )
 
 func main() {
-	godotenv.Load()
-	config.Load()
+	// .env dimuat otomatis sekali oleh config.init().
 	database.Init()
 	services.InitAI()
 	services.InitEmbedding()
@@ -39,6 +42,8 @@ func main() {
 
 	// Cek langganan tiap jam: expire yang habis & suspend sesi WA tenant non-aktif.
 	handlers.StartSubscriptionSweep(time.Hour)
+	// Bersihkan entry throttle login yang kadaluarsa secara berkala (anti memory-leak botnet).
+	handlers.StartLoginThrottleSweeper()
 
 	r := gin.Default()
 	r.Use(handlers.CORS())
@@ -150,6 +155,23 @@ func main() {
 	}
 
 	port := config.Env("PORT", "3030")
+	srv := &http.Server{Addr: ":" + port, Handler: r}
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Fatalf("server error: %v", err)
+		}
+	}()
 	log.Printf("WA Assistant server running on :%s", port)
-	log.Fatal(r.Run(":" + port))
+
+	// Graceful shutdown: tunggu SIGINT/SIGTERM, lalu beri waktu request berjalan selesai.
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	log.Println("Mematikan server (graceful)…")
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("graceful shutdown gagal: %v", err)
+	}
+	log.Println("Server berhenti.")
 }

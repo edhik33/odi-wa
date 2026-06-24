@@ -20,6 +20,11 @@ func Init() {
 	user := config.Env("DB_USER", "root")
 	pass := config.Env("DB_PASS", "")
 	name := config.Env("DB_NAME", "wa_assistant")
+	// Validasi nama DB (hanya huruf/angka/underscore) sebelum dipakai di query CREATE DATABASE.
+	if !validDBName(name) {
+		log.Printf("DB_NAME tidak valid (%q) — pakai default 'wa_assistant'", name)
+		name = "wa_assistant"
+	}
 
 	// Buat database-nya kalau belum ada (connect tanpa nama DB dulu).
 	rootDSN := fmt.Sprintf("%s:%s@tcp(%s:%s)/?charset=utf8mb4&parseTime=True&loc=Local", user, pass, host, port)
@@ -35,6 +40,14 @@ func Init() {
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
 		log.Fatal("DB error (MySQL): ", err)
+	}
+
+	// Batasi connection pool agar lonjakan traffic tidak menghabiskan koneksi MySQL
+	// (penting di VPS yang dipakai bersama situs lain). Semua bisa diatur via env.
+	if sqlDB, e := DB.DB(); e == nil {
+		sqlDB.SetMaxOpenConns(config.EnvInt("DB_MAX_OPEN_CONNS", 25))
+		sqlDB.SetMaxIdleConns(config.EnvInt("DB_MAX_IDLE_CONNS", 5))
+		sqlDB.SetConnMaxLifetime(time.Duration(config.EnvInt("DB_CONN_MAX_LIFETIME_MIN", 30)) * time.Minute)
 	}
 
 	DB.AutoMigrate(
@@ -53,6 +66,21 @@ func Init() {
 	migrateLegacyTenant()
 
 	log.Println("Database ready")
+}
+
+// validDBName memastikan nama database hanya berisi huruf/angka/underscore
+// (mencegah injeksi pada query CREATE DATABASE yang merangkai nama).
+func validDBName(s string) bool {
+	if s == "" {
+		return false
+	}
+	for _, r := range s {
+		ok := (r >= 'a' && r <= 'z') || (r >= 'A' && r <= 'Z') || (r >= '0' && r <= '9') || r == '_'
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // seedPlans mengisi paket langganan awal (idempoten).
