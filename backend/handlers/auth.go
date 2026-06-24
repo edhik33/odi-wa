@@ -5,7 +5,6 @@ import (
 	"log"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
@@ -15,6 +14,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 var jwtSecret = mustJWTSecret()
@@ -29,17 +29,8 @@ const (
 var (
 	loginWindow       = time.Duration(config.EnvInt("LOGIN_WINDOW_MIN", 10)) * time.Minute
 	loginLockDuration = time.Duration(config.EnvInt("LOGIN_LOCK_MIN", 10)) * time.Minute
-
-	loginThrottleMu sync.Mutex
-	loginThrottle   = map[string]*loginThrottleEntry{}
-	dummyLoginHash  = []byte("$2a$10$QEUEZpKWWd3xV1qX7Q9BceA5.CgHCMOaOy3MpF8M/OIWYK8MKioJm")
+	dummyLoginHash    = []byte("$2a$10$QEUEZpKWWd3xV1qX7Q9BceA5.CgHCMOaOy3MpF8M/OIWYK8MKioJm")
 )
-
-type loginThrottleEntry struct {
-	failures    int
-	firstSeen   time.Time
-	lockedUntil time.Time
-}
 
 type loginThrottleKey struct {
 	key string
@@ -236,22 +227,24 @@ func loginThrottleKeys(ip, username string) []loginThrottleKey {
 }
 
 func checkLoginThrottle(ip, username string, now time.Time) time.Duration {
-	loginThrottleMu.Lock()
-	defer loginThrottleMu.Unlock()
-
 	var wait time.Duration
 	for _, k := range loginThrottleKeys(ip, username) {
-		entry := loginThrottle[k.key]
-		if entry == nil {
+		var entry models.LoginThrottle
+		err := database.DB.Where("`key` = ?", k.key).First(&entry).Error
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			continue
 		}
-		expired := now.Sub(entry.firstSeen) > loginWindow && now.After(entry.lockedUntil)
+		if err != nil {
+			log.Printf("login throttle read error (%s): %v", k.key, err)
+			continue
+		}
+		expired := now.Sub(entry.FirstSeen) > loginWindow && now.After(entry.LockedUntil)
 		if expired {
-			delete(loginThrottle, k.key)
+			_ = database.DB.Delete(&entry).Error
 			continue
 		}
-		if now.Before(entry.lockedUntil) {
-			if w := entry.lockedUntil.Sub(now); w > wait {
+		if now.Before(entry.LockedUntil) {
+			if w := entry.LockedUntil.Sub(now); w > wait {
 				wait = w
 			}
 		}
@@ -260,18 +253,30 @@ func checkLoginThrottle(ip, username string, now time.Time) time.Duration {
 }
 
 func recordLoginFailure(ip, username string, now time.Time) {
-	loginThrottleMu.Lock()
-	defer loginThrottleMu.Unlock()
-
 	for _, k := range loginThrottleKeys(ip, username) {
-		entry := loginThrottle[k.key]
-		if entry == nil || now.Sub(entry.firstSeen) > loginWindow {
-			entry = &loginThrottleEntry{firstSeen: now}
-			loginThrottle[k.key] = entry
-		}
-		entry.failures++
-		if entry.failures >= k.max {
-			entry.lockedUntil = now.Add(loginLockDuration)
+		if err := database.DB.Transaction(func(tx *gorm.DB) error {
+			var entry models.LoginThrottle
+			err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).Where("`key` = ?", k.key).First(&entry).Error
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				entry = models.LoginThrottle{Key: k.key, FirstSeen: now}
+			} else if err != nil {
+				return err
+			} else if now.Sub(entry.FirstSeen) > loginWindow && now.After(entry.LockedUntil) {
+				entry.Failures = 0
+				entry.FirstSeen = now
+				entry.LockedUntil = time.Time{}
+			}
+
+			entry.Failures++
+			if entry.Failures >= k.max {
+				entry.LockedUntil = now.Add(loginLockDuration)
+			}
+			if entry.ID == 0 {
+				return tx.Create(&entry).Error
+			}
+			return tx.Save(&entry).Error
+		}); err != nil {
+			log.Printf("login throttle write error (%s): %v", k.key, err)
 		}
 	}
 }
@@ -281,27 +286,28 @@ func clearLoginPairThrottle(ip, username string) {
 	if ip == "" || username == "" {
 		return
 	}
-	loginThrottleMu.Lock()
-	delete(loginThrottle, "pair:"+ip+":"+username)
-	loginThrottleMu.Unlock()
+	_ = database.DB.Where("`key` = ?", "pair:"+ip+":"+username).Delete(&models.LoginThrottle{}).Error
 }
 
 // StartLoginThrottleSweeper menghapus entry throttle yang sudah kadaluarsa secara berkala,
-// supaya map tidak tumbuh tanpa batas saat diserang banyak IP/username unik (botnet).
+// supaya tabel tidak tumbuh tanpa batas saat diserang banyak IP/username unik (botnet).
 func StartLoginThrottleSweeper() {
 	go func() {
+		cleanupLoginThrottle()
 		t := time.NewTicker(loginWindow)
+		defer t.Stop()
 		for range t.C {
-			now := time.Now()
-			loginThrottleMu.Lock()
-			for k, e := range loginThrottle {
-				if now.Sub(e.firstSeen) > loginWindow && now.After(e.lockedUntil) {
-					delete(loginThrottle, k)
-				}
-			}
-			loginThrottleMu.Unlock()
+			cleanupLoginThrottle()
 		}
 	}()
+}
+
+func cleanupLoginThrottle() {
+	now := time.Now()
+	cutoff := now.Add(-loginWindow)
+	if err := database.DB.Where("first_seen < ? AND locked_until < ?", cutoff, now).Delete(&models.LoginThrottle{}).Error; err != nil {
+		log.Printf("login throttle cleanup error: %v", err)
+	}
 }
 
 func throttleLogin(c *gin.Context, wait time.Duration) {
