@@ -10,6 +10,7 @@ import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
 import QrCodeIcon from '@mui/icons-material/QrCode';
 import SupportAgentIcon from '@mui/icons-material/SupportAgent';
+import MenuIcon from '@mui/icons-material/Menu';
 import DashboardIcon from '@mui/icons-material/DashboardOutlined';
 import InboxIcon from '@mui/icons-material/InboxOutlined';
 import ChatIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
@@ -94,6 +95,7 @@ export default function Dashboard() {
   const [tone, setTone] = useState('ramah');
   const [aiEnabled, setAiEnabled] = useState(true);
   const [showGuardModal, setShowGuardModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [guardMissing, setGuardMissing] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [greetEnabled, setGreetEnabled] = useState(false);
@@ -322,6 +324,7 @@ export default function Dashboard() {
       >
         <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ alignItems: { xs: 'center', md: 'stretch' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexShrink: 0 }}>
+            <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} sx={{ display: { xs: 'inline-flex', md: 'none' }, flexShrink: 0 }}><MenuIcon /></IconButton>
             <img src={logo} alt="ChatLoop" style={{ width: 40, height: 40, flexShrink: 0 }} />
             <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'block' } }}>
               <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>ChatLoop</Typography>
