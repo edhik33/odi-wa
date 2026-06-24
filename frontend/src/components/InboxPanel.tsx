@@ -115,8 +115,15 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
   }, [contacts, sender]);
 
   useEffect(() => { if (seed?.value) setSender(seed.value); }, [seed?.n]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ganti kontak → langsung scroll ke bawah (chat terbaru).
   useEffect(() => {
-    // Auto-scroll HANYA kalau user di dekat bawah (dalam 80px dari bottom).
+    const el = chatRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [sender]);
+
+  // Data refresh (pesan baru, bot reply) → cuma scroll kalau user dekat bawah.
+  useEffect(() => {
     const el = chatRef.current;
     if (!el) return;
     const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
