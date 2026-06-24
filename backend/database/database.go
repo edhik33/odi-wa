@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/models"
@@ -173,14 +174,17 @@ func migrateLegacyTenant() {
 		Where("is_super_admin = ? AND (tenant_id IS NULL OR tenant_id = 0)", false).
 		Updates(map[string]interface{}{"tenant_id": tenant.ID, "role": "owner"})
 
-	// Instalasi baru: belum ada owner sama sekali → buat owner dari env.
+	// Instalasi baru: belum ada owner sama sekali → buat owner dari env (DEFAULT_OWNER_USERNAME / DEFAULT_OWNER_PASSWORD).
 	var owners int64
 	DB.Model(&models.User{}).Where("tenant_id = ?", tenant.ID).Count(&owners)
 	if owners == 0 {
-		ownerUser := config.Env("OWNER_USERNAME", "admin")
-		ownerPass := os.Getenv("OWNER_PASSWORD")
-		if ownerPass == "" {
-			log.Println("Seeder: OWNER_PASSWORD tidak diset — skip owner, harus dibuat manual")
+		ownerUser := strings.TrimSpace(os.Getenv("DEFAULT_OWNER_USERNAME"))
+		ownerPass := os.Getenv("DEFAULT_OWNER_PASSWORD")
+		if ownerUser == "" {
+			ownerUser = "admin"
+		}
+		if ownerUser == "" || ownerPass == "" {
+			log.Println("Seeder: default owner tidak dibuat; set DEFAULT_OWNER_USERNAME/DEFAULT_OWNER_PASSWORD di .env")
 			return
 		}
 		hash, _ := bcrypt.GenerateFromPassword([]byte(ownerPass), bcrypt.DefaultCost)
