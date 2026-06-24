@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, Card, List, ListItemButton, ListItemText, TextField, IconButton,
-  Stack, Chip, Button, Divider, CircularProgress, Avatar,
+  Stack, Chip, Button, Divider, CircularProgress, Avatar, Dialog,
 } from '@mui/material';
 import SendIcon from '@mui/icons-material/Send';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
@@ -15,9 +15,17 @@ import TemplatePicker from './TemplatePicker';
 import type { ChatMsg } from '../types';
 
 function MediaView({ agentId, m, token }: { agentId: number; m: ChatMsg; token: string }) {
+  const [zoom, setZoom] = useState<string | null>(null);
   const url = `/api/agents/${agentId}/media/${m.id}?token=${token}`;
   if (m.media_type === 'image' || m.media_type === 'sticker')
-    return <img src={url} alt="" style={{ maxWidth: 200, borderRadius: 8, display: 'block' }} />;
+    return (
+      <>
+        <img src={url} alt="" onClick={() => setZoom(url)} style={{ maxWidth: 200, borderRadius: 8, display: 'block', cursor: 'pointer' }} />
+        <Dialog open={!!zoom} onClose={() => setZoom(null)} maxWidth="md" onClick={() => setZoom(null)}>
+          <img src={zoom || ''} alt="" style={{ maxWidth: '90vw', maxHeight: '85vh', display: 'block' }} />
+        </Dialog>
+      </>
+    );
   if (m.media_type === 'audio') return <audio src={url} controls style={{ maxWidth: 220 }} />;
   if (m.media_type === 'video') return <video src={url} controls style={{ maxWidth: 220, borderRadius: 8 }} />;
   return <a href={url} target="_blank" rel="noreferrer" style={{ color: 'inherit' }}>📎 {m.file_name || 'Unduh file'}</a>;
