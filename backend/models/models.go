@@ -20,7 +20,6 @@ type Agent struct {
 	BusinessStart        string `gorm:"size:5;default:'08:00'" json:"business_start"`
 	BusinessEnd          string `gorm:"size:5;default:'21:00'" json:"business_end"`
 	AwayMessage          string `gorm:"type:text" json:"away_message"`
-	AutoReact            string `gorm:"size:8" json:"auto_react"` // emoji reaction otomatis, kosong = mati
 
 	ConversationSummary string    `gorm:"type:text" json:"conversation_summary"`
 	LastSummaryAt       time.Time `json:"last_summary_at"`

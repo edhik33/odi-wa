@@ -777,22 +777,6 @@ func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...stri
 	return err
 }
 
-// SendReaction mengirim reaction emoji ke pesan tertentu.
-func (w *waInstance) SendReaction(toNumber, msgID, emoji string) error {
-	w.mu.Lock()
-	client := w.client
-	w.mu.Unlock()
-	if client == nil || !client.IsConnected() {
-		return fmt.Errorf("client WA tidak terhubung")
-	}
-	if emoji == "" {
-		return nil // tidak ada reaction, skip
-	}
-	jid := types.NewJID(toNumber, types.DefaultUserServer)
-	_, err := client.SendMessage(context.Background(), jid,
-		client.BuildReaction(jid, jid, types.MessageID(msgID), emoji))
-	return err
-}
 
 // humanDelay meniru kecepatan mengetik manusia: jeda dasar acak + proporsional panjang pesan, dibatasi 6 detik.
 func humanDelay(msg string) time.Duration {

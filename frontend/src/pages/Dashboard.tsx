@@ -93,7 +93,6 @@ export default function Dashboard() {
   const [agentName, setAgentName] = useState('');
   const [prompt, setPrompt] = useState('');
   const [tone, setTone] = useState('ramah');
-  const [autoReact, setAutoReact] = useState('');
   const [aiEnabled, setAiEnabled] = useState(true);
   const [showGuardModal, setShowGuardModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -165,7 +164,7 @@ export default function Dashboard() {
     setKnowledgePage(0);
     const a = agents.find(x => x.id === agentId);
     if (a) {
-      setAgentName(a.name || ''); setPrompt(a.system_prompt || ''); setTone(a.tone || 'ramah'); setAutoReact(a.auto_react || '');
+      setAgentName(a.name || ''); setPrompt(a.system_prompt || ''); setTone(a.tone || 'ramah');
       setAiEnabled(a.ai_enabled !== false);
       setGreetEnabled(!!a.greeting_enabled); setGreetMsg(a.greeting_message || '');
       setBhEnabled(!!a.business_hours_enabled); setBhStart(a.business_start || '08:00');
@@ -213,7 +212,7 @@ export default function Dashboard() {
     setSettingsErrors(e);
     if (Object.keys(e).length > 0) return;
     await saveAgentMut.mutateAsync({
-      name: agentName, system_prompt: prompt, tone, auto_react: autoReact,
+      name: agentName, system_prompt: prompt, tone,
       greeting_enabled: greetEnabled, greeting_message: greetMsg,
       business_hours_enabled: bhEnabled, business_start: bhStart, business_end: bhEnd, away_message: awayMsg,
     });
@@ -647,16 +646,6 @@ export default function Dashboard() {
                   </Grid>
                 </Grid>
 
-                <Grid container spacing={1.5} sx={{ mb: 1 }}>
-                  <Grid size={{ xs: 12, sm: 6 }}>
-                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Auto-Reaction <Typography component="span" variant="caption" color="text.secondary">(opsional)</Typography></Typography>
-                    <TextField fullWidth size="small" value={autoReact} onChange={e => setAutoReact(e.target.value)}
-                      placeholder="❤️"
-                      helperText="Emoji otomatis saat pelanggan kirim pesan. Kosongkan untuk matikan."
-                      inputProps={{ maxLength: 8, style: { fontSize: 20, textAlign: 'center' } }}
-                    />
-                  </Grid>
-                </Grid>
 
                 <Typography variant="subtitle2" sx={{ mb: 0.5 }}>System Prompt — Persona <Typography component="span" variant="caption" color="text.secondary">(opsional)</Typography></Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block' }}>

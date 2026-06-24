@@ -189,10 +189,6 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		if agent.ConversationSummary != "" {
 			prompt = "PERCAKAPAN SEBELUMNYA: " + agent.ConversationSummary + "\n\n" + prompt
 		}
-		// Auto-react: kirim reaction emoji kalau di-set
-		if agent.AutoReact != "" && in.WAMsgID != "" {
-			go func() { _ = services.WA(agentID).SendReaction(num, in.WAMsgID, agent.AutoReact) }()
-		}
 	}
 
 	// Simpan media ke disk dulu (kalau ada).
