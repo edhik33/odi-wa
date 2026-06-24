@@ -168,7 +168,7 @@ export default function InboxPanel({ agentId, seed }: { agentId: number; seed?: 
           ) : (
             <>
               <Stack direction="row" sx={{ p: 1.25, alignItems: 'center', justifyContent: 'space-between' }}>
-                <Stack direction="row" spacing={1} alignItems="center">
+                <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
                   <Avatar sx={{ width: 36, height: 36, fontSize: 14, fontWeight: 700, bgcolor: 'grey.400' }}>
                     {(selectedName || sender).charAt(0).toUpperCase()}
                   </Avatar>
