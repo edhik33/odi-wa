@@ -29,6 +29,7 @@ type IncomingMessage struct {
 	FileName  string
 	Data      []byte
 	WAMsgID   string // ID pesan asli dari WhatsApp (untuk reply-to)
+	ReplyTo   string // ID pesan yg di-reply (dari ContextInfo)
 	PushName  string // nama profil pengirim (dari WA), untuk disimpan ke Contact
 }
 
@@ -622,7 +623,9 @@ func (w *waInstance) extractIncoming(v *events.Message) (IncomingMessage, bool) 
 		return IncomingMessage{Text: t}, true
 	}
 	if ext := m.GetExtendedTextMessage(); ext != nil && ext.GetText() != "" {
-		return IncomingMessage{Text: ext.GetText()}, true
+		var replyTo string
+		if ci := ext.GetContextInfo(); ci != nil { replyTo = ci.GetStanzaID() }
+		return IncomingMessage{Text: ext.GetText(), ReplyTo: replyTo}, true
 	}
 	ctx := context.Background()
 	switch {
