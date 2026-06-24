@@ -1,4 +1,4 @@
-import { Box, Link, Grid, Divider, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
+import { Box, Link, Grid, Divider, Link, Grid, Divider, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import heroLogo from '../assets/Logo-chatloop-gradients.png';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
