@@ -209,3 +209,59 @@ func DeleteSavedContact(c *gin.Context) {
 	_ = database.DB.Where("agent_id = ?", id).Delete(&models.Contact{}, c.Param("cid")).Error
 	c.JSON(200, gin.H{"message": "Deleted"})
 }
+
+// BulkTagSavedContacts menambahkan tag ke beberapa kontak sekaligus.
+// Body: { ids: number[], tag: string }. Tag baru ditambahkan (append)
+// tanpa menghapus tag yang sudah ada. Duplikat otomatis dibuang.
+func BulkTagSavedContacts(c *gin.Context) {
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	var req struct {
+		IDs []uint `json:"ids"`
+		Tag string `json:"tag"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+	tag := strings.TrimSpace(req.Tag)
+	if tag == "" {
+		c.JSON(400, gin.H{"error": "Tag wajib diisi"})
+		return
+	}
+	if len(req.IDs) == 0 {
+		c.JSON(400, gin.H{"error": "Pilih minimal satu kontak"})
+		return
+	}
+
+	var contacts []models.Contact
+	database.DB.Where("agent_id = ? AND id IN ?", id, req.IDs).Find(&contacts)
+	if len(contacts) == 0 {
+		c.JSON(404, gin.H{"error": "Kontak tidak ditemukan"})
+		return
+	}
+
+	updated := 0
+	for _, ct := range contacts {
+		existing := tagList(ct.Tags)
+		lowerTag := strings.ToLower(tag)
+		already := false
+		for _, t := range existing {
+			if strings.ToLower(t) == lowerTag {
+				already = true
+				break
+			}
+		}
+		if already {
+			continue
+		}
+		existing = append(existing, tag)
+		ct.Tags = normalizeTags(strings.Join(existing, ","))
+		_ = database.DB.Save(&ct).Error
+		updated++
+	}
+
+	c.JSON(200, gin.H{"message": "Tag ditambahkan", "updated": updated, "total": len(contacts)})
+}

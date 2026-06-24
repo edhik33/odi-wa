@@ -2,7 +2,7 @@ import { useState } from 'react';
 import {
   Box, Card, CardContent, Typography, Button, Stack, Chip, IconButton, Alert,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, InputAdornment,
-  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper,
+  Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Pagination,
 } from '@mui/material';
 import EmptyState from './common/EmptyState';
 import PeopleIcon from '@mui/icons-material/PeopleOutlined';
@@ -25,6 +25,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const [edit, setEdit] = useState<SavedContact | null>(null);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState<Partial<SavedContact>>(EMPTY);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(0);
@@ -37,11 +38,19 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const contacts = data?.data || [];
   const allTags = data?.all_tags || [];
 
-  const openAdd = () => { setForm(EMPTY); setAddOpen(true); };
-  const openEdit = (ct: SavedContact) => { setForm(ct); setEdit(ct); setOpen(true); };
-  const closeDialog = () => { setAddOpen(false); setOpen(false); setEdit(null); };
+  const openAdd = () => { setForm(EMPTY); setFormErrors({}); setAddOpen(true); };
+  const openEdit = (ct: SavedContact) => { setForm(ct); setFormErrors({}); setEdit(ct); setOpen(true); };
+  const closeDialog = () => { setAddOpen(false); setOpen(false); setEdit(null); setFormErrors({}); };
+
+  const validate = (): boolean => {
+    const errs: Record<string, string> = {};
+    if (!form.number?.trim()) errs.number = 'Nomor WhatsApp wajib diisi';
+    setFormErrors(errs);
+    return Object.keys(errs).length === 0;
+  };
 
   const save = async () => {
+    if (!validate()) return;
     await saveCrmContact.mutateAsync(form);
     closeDialog();
   };
@@ -52,21 +61,22 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
 
   const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(0); };
 
-  const handleExport = async () => {
-    const list = await exportContacts.mutateAsync({ q, tag });
-    const csv = 'Nama,Nomor,Tags,Catatan\n' + list.map((c: any) => `"${c.name || ''}","+${c.number}","${c.tags || ''}","${c.notes || ''}"`).join('\n');
-    const blob = new Blob([csv], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url; a.download = 'kontak.csv'; a.click();
-    URL.revokeObjectURL(url);
+  const handleBroadcast = async () => {
+    const list = await crmExport.mutateAsync({ q, tag });
+    const lines = list.map((c: any) => `${c.number},${c.name || ''}`);
+    onBroadcast(lines.join('\n'));
   };
 
   return (
     <Box>
       <Stack direction="row" sx={{ mb: 1.5, gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6">Kontak</Typography>
-        <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Tambah</Button>
+        <Stack direction="row" spacing={1}>
+          <Button variant="outlined" startIcon={<CampaignIcon />} onClick={handleBroadcast} disabled={contacts.length === 0}>
+            {tag ? `Broadcast tag "${tag}"` : 'Broadcast'}
+          </Button>
+          <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Tambah</Button>
+        </Stack>
       </Stack>
 
       <TextField
@@ -149,18 +159,28 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
         </Paper>
       )}
 
-      <Stack direction="row" spacing={1} sx={{ justifyContent: 'flex-end' }}>
-        <Button size="small" variant="outlined" onClick={handleExport} startIcon={<CampaignIcon />} disabled={contacts.length === 0}>
-          {tag ? `Broadcast tag "${tag}"` : 'Broadcast hasil ini'}
-        </Button>
-      </Stack>
+      {contacts.length > 0 && (
+        <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+          <Typography variant="body2" color="text.secondary">
+            {data?.total ?? 0} kontak
+          </Typography>
+          <Pagination
+            count={Math.ceil((data?.total ?? 0) / (data?.limit ?? 20))}
+            page={page + 1}
+            onChange={(_e, p) => setPage(p - 1)}
+            size="small"
+            siblingCount={0}
+            boundaryCount={1}
+          />
+        </Stack>
+      )}
 
       <Dialog open={addOpen || open} onClose={closeDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{addOpen ? 'Tambah Kontak' : 'Edit Kontak'}</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ mt: 1 }}>
             <TextField label="Nama" size="small" value={form.name || ''} onChange={e => setForm({...form, name: e.target.value})} />
-            <TextField label="Nomor (08xx…)" size="small" value={form.number || ''} onChange={e => setForm({...form, number: e.target.value})} disabled={!!edit} />
+            <TextField label="Nomor (08xx…)" size="small" value={form.number || ''} onChange={e => setForm({...form, number: e.target.value})} disabled={!!edit} error={!!formErrors.number} helperText={formErrors.number} />
             <TextField label="Tags (pisah koma)" size="small" value={form.tags || ''} onChange={e => setForm({...form, tags: e.target.value})} placeholder="vip, pelanggan tetap" />
             <TextField label="Catatan" size="small" multiline rows={2} value={form.notes || ''} onChange={e => setForm({...form, notes: e.target.value})} />
           </Stack>
