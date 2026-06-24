@@ -24,6 +24,7 @@ import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import { QRCodeSVG } from 'qrcode.react';
 import logo from '../assets/logo-chatloop-1.png';
+import api from '../services/api';
 import { swalConfirm, swalPrompt, swalAlert, swalToast } from '../services/swal';
 import SettingsIcon from '@mui/icons-material/Settings';
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
@@ -115,8 +116,10 @@ export default function Dashboard() {
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
   const [settingsErrors, setSettingsErrors] = useState<Record<string, string>>({});
-  const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string };
+  const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string; phone?: string };
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
+  const [profileName, setProfileName] = useState(user.name || '');
+  const [profileSaving, setProfileSaving] = useState(false);
 
   // ---- TanStack Query: data fetching + auto-polling, tanpa useEffect/setInterval manual ----
 
@@ -205,6 +208,22 @@ export default function Dashboard() {
   const disconnectWA = async () => {
     if (!await swalConfirm('Putuskan WhatsApp?', 'Perlu scan QR lagi untuk menyambung kembali.')) return;
     try { await disconnectMut.mutateAsync(); } catch { /* refresh status agar UI tetap sinkron */ }
+  };
+
+  const saveProfile = async () => {
+    if (!profileName.trim()) return;
+    setProfileSaving(true);
+    try {
+      const res = await api.put('/profile', { name: profileName.trim() });
+      const updated = res.data.user;
+      const stored = JSON.parse(localStorage.getItem('user') || '{}');
+      localStorage.setItem('user', JSON.stringify({ ...stored, ...updated }));
+      swalToast('Profil disimpan');
+    } catch {
+      swalToast('Gagal menyimpan profil');
+    } finally {
+      setProfileSaving(false);
+    }
   };
 
   const saveAgent = async () => {
@@ -623,6 +642,22 @@ export default function Dashboard() {
         {tab === 'settings' && (
           <Box>
             <PageHeader title={<><SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />Pengaturan {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
+
+            {/* --- Profil User --- */}
+            <Card sx={{ mb: 1.5 }}>
+              <CardContent>
+                <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Profil Kamu</Typography>
+                <Stack spacing={1.5}>
+                  <TextField label="Nama" size="small" fullWidth value={profileName} onChange={e => setProfileName(e.target.value)} />
+                  <TextField label="Email" size="small" fullWidth value={user.email || ''} disabled helperText="Email tidak bisa diubah" />
+                  <TextField label="Nomor WhatsApp" size="small" fullWidth value={user.phone ? `+${user.phone}` : '—'} disabled helperText="Nomor tidak bisa diubah" />
+                  <Button variant="contained" size="small" onClick={saveProfile} disabled={profileSaving || !profileName.trim()} sx={{ alignSelf: 'flex-start' }}>
+                    {profileSaving ? 'Menyimpan…' : 'Simpan'}
+                  </Button>
+                </Stack>
+              </CardContent>
+            </Card>
+
             <Card sx={{ mb: 1.5 }}>
               <CardContent>
                 <Box sx={{ mb: 1.5, p: 1.25, borderRadius: 1, border: '1px solid', borderColor: aiEnabled ? 'success.light' : 'divider', bgcolor: aiEnabled ? 'rgba(37,211,102,0.07)' : 'action.hover' }}>
@@ -884,6 +919,7 @@ export default function Dashboard() {
             <Box>
               <Typography variant="body2" sx={{ fontWeight: 600 }}>{user.name || user.username}</Typography>
               <Typography variant="caption" color="text.secondary">{user.email || '—'}</Typography>
+              {user.phone && <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>+{user.phone}</Typography>}
             </Box>
           </Stack>
           {user.role && (
@@ -892,7 +928,7 @@ export default function Dashboard() {
           )}
           <Divider />
           <Button size="small" startIcon={<SettingsIcon />} onClick={() => { setTab('settings'); setProfileAnchor(null); }}>
-            Pengaturan Akun
+            Profil
           </Button>
           <Button size="small" startIcon={<LogoutIcon />} color="error" onClick={() => { setProfileAnchor(null); logout(); }}>
             Logout

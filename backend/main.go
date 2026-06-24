@@ -67,6 +67,7 @@ func main() {
 		api.POST("/billing/tripay/callback", handlers.TripayCallback) // webhook Tripay (signature diverifikasi)
 		api.GET("/agents/:id/media/:cid", handlers.ServeMedia)        // file media (auth via ?token=)
 		api.GET("/me", handlers.AuthMiddleware(), handlers.Me)
+		api.PUT("/profile", handlers.AuthMiddleware(), handlers.UpdateProfile)
 
 		// Panel operator platform (super admin).
 		admin := api.Group("/admin", handlers.AuthMiddleware(), handlers.AdminOnly())

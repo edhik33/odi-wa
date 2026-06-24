@@ -210,6 +210,7 @@ func userResponse(u models.User) gin.H {
 		"name":           u.Name,
 		"username":       u.Username,
 		"email":          u.Email,
+		"phone":          u.Phone,
 		"email_verified": u.EmailVerified,
 		"role":           u.Role,
 		"is_super_admin": u.IsSuperAdmin,
@@ -478,6 +479,28 @@ func Me(c *gin.Context) {
 		}
 	}
 	c.JSON(200, resp)
+}
+
+// UpdateProfile hanya mengizinkan update Nama. Email & nomor tidak bisa diubah.
+func UpdateProfile(c *gin.Context) {
+	var user models.User
+	if database.DB.First(&user, c.GetUint("user_id")).Error != nil {
+		c.JSON(404, gin.H{"error": "User tidak ditemukan"})
+		return
+	}
+	var req struct {
+		Name string `json:"name"`
+	}
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(400, gin.H{"error": "Format data tidak valid"})
+		return
+	}
+	user.Name = strings.TrimSpace(req.Name)
+	if err := database.DB.Save(&user).Error; err != nil {
+		c.JSON(500, gin.H{"error": "Gagal menyimpan"})
+		return
+	}
+	c.JSON(200, gin.H{"user": userResponse(user)})
 }
 
 func firstNonEmpty(vals ...string) string {
