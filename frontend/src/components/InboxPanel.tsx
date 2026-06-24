@@ -117,24 +117,27 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
 
   useEffect(() => { if (seed?.value) setSender(seed.value); }, [seed?.n]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Ganti kontak → langsung scroll ke bawah (chat terbaru).
+  // Reset scroll flag tiap ganti kontak.
   useEffect(() => {
-    const el = chatRef.current;
-    if (el) { el.scrollTop = el.scrollHeight; didFirstScroll.current = true; }
+    didFirstScroll.current = false;
   }, [sender]);
 
-  // Data refresh (pesan baru, bot reply) → cuma scroll kalau user dekat bawah.
-  // KECUALI load pertama: langsung scroll ke bawah.
+  // Data refresh: load pertama atau ganti kontak → scroll ke bawah.
+  // Pesan baru (data refresh) → cuma scroll kalau user dekat bawah.
   useEffect(() => {
     const el = chatRef.current;
-    if (!el) return;
-    if (!didFirstScroll.current) {
-      el.scrollTop = el.scrollHeight;
-      didFirstScroll.current = true;
-      return;
-    }
-    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
-    if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (!el || !convo) return;
+    // Pakai setTimeout biar DOM udah ke-render dulu sebelum scroll.
+    setTimeout(() => {
+      if (!el) return;
+      if (!didFirstScroll.current) {
+        el.scrollTop = el.scrollHeight;
+        didFirstScroll.current = true;
+      } else {
+        const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+        if (nearBottom) bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
+      }
+    }, 50);
   }, [convo]);
 
   const busy = sendMsg.isPending || sendMedia.isPending;
