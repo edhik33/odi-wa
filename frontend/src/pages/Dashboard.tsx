@@ -497,7 +497,7 @@ export default function Dashboard() {
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card sx={{ height: '100%', borderColor: 'primary.main' }}>
                   <CardContent>
-                    <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 1 }}>
+                    <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
                       <Typography variant="subtitle2">
                         <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
                         Generate dengan AI
