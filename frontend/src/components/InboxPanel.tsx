@@ -7,7 +7,7 @@ import SendIcon from '@mui/icons-material/Send';
 import SmartToyIcon from '@mui/icons-material/SmartToy';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
-import { useContacts, useConversation, useSendMessage, useSendMedia, useResumeBot } from '../hooks';
+import { useContacts, useConversation, useSendMessage, useSendMedia, useSendTyping, useResumeBot } from '../hooks';
 import PageHeader from './PageHeader';
 import TemplatePicker from './TemplatePicker';
 import type { ChatMsg } from '../types';
@@ -103,7 +103,9 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
   const { data: convo } = useConversation(agentId, sender);
   const sendMsg = useSendMessage(agentId);
   const sendMedia = useSendMedia(agentId);
+  const sendTyping = useSendTyping(agentId);
   const resumeBot = useResumeBot(agentId);
+  const typingTimer = useRef<ReturnType<typeof setTimeout>>();
   const [text, setText] = useState('');
   const [file, setFile] = useState<File | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
@@ -256,7 +258,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                 <TemplatePicker agentId={agentId} variant="text"
                   onPick={b => { const filled = b.replace(/\{nama\}/g, selectedName || 'kak'); setText(t => t ? t + ' ' + filled : filled); }} />
                 <TextField fullWidth size="small" placeholder={file ? 'Caption (opsional)…' : 'Balas pelanggan…'} value={text}
-                  onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && send()}
+                  onChange={e => { setText(e.target.value); if (sender) { clearTimeout(typingTimer.current); sendTyping.mutate({ to: sender, active: true }); typingTimer.current = setTimeout(() => sendTyping.mutate({ to: sender, active: false }), 5000); } }} onKeyDown={e => e.key === 'Enter' && send()} onBlur={() => { if (sender) sendTyping.mutate({ to: sender, active: false }); }}
                   inputRef={inputRef}
                   sx={{
                     '& .MuiInputBase-root': { borderRadius: 2.5 },
