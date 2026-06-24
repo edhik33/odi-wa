@@ -34,7 +34,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const deleteCrmContact = useDeleteCrmContact(agentId);
   const crmExport = useCrmContactsExport(agentId);
 
-  const contacts = data?.contacts || [];
+  const contacts = data?.data || [];
   const allTags = data?.all_tags || [];
 
   const openAdd = () => { setForm(EMPTY); setAddOpen(true); };
