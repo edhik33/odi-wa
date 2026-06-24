@@ -22,6 +22,7 @@ import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
 import FollowUpIcon from '@mui/icons-material/ScheduleSendOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
+import PersonIcon from '@mui/icons-material/Person';
 import { QRCodeSVG } from 'qrcode.react';
 import logo from '../assets/logo-chatloop-1.png';
 import api from '../services/api';
@@ -77,7 +78,6 @@ const NAV_GROUPS = [
     { id: 'follow-up', label: 'Follow-up', icon: <FollowUpIcon fontSize="small" /> },
   ] },
   { section: 'Akun', items: [
-    { id: 'settings', label: 'Profil', icon: <SettingsIcon fontSize="small" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
     { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
   ] },
@@ -121,6 +121,7 @@ export default function Dashboard() {
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
   const [profileName, setProfileName] = useState(user.name || '');
   const [profileSaving, setProfileSaving] = useState(false);
+  const [profileModalOpen, setProfileModalOpen] = useState(false);
 
   // ---- TanStack Query: data fetching + auto-polling, tanpa useEffect/setInterval manual ----
 
@@ -220,6 +221,7 @@ export default function Dashboard() {
       const stored = JSON.parse(localStorage.getItem('user') || '{}');
       localStorage.setItem('user', JSON.stringify({ ...stored, ...updated }));
       swalToast('Profil disimpan');
+      setProfileModalOpen(false);
     } catch {
       swalToast('Gagal menyimpan profil');
     } finally {
@@ -442,6 +444,9 @@ export default function Dashboard() {
           ))}
         </Box>
         <Box sx={{ flex: 1, display: { xs: 'none', md: 'block' } }} />
+        <Button startIcon={<PersonIcon />} onClick={() => setProfileModalOpen(true)} sx={{ display: { xs: 'none', md: 'inline-flex' }, justifyContent: 'flex-start', color: 'text.secondary' }}>
+          Profil
+        </Button>
         <Button startIcon={<LogoutIcon />} onClick={logout} color="error" sx={{ display: { xs: 'none', md: 'inline-flex' }, justifyContent: 'flex-start' }}>
           Logout
         </Button>
@@ -643,21 +648,6 @@ export default function Dashboard() {
         {tab === 'settings' && (
           <Box>
             <PageHeader title={<><SettingsIcon sx={{ mr: 1, verticalAlign: 'middle' }} />Pengaturan {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
-
-            {/* --- Profil User --- */}
-            <Card sx={{ mb: 1.5 }}>
-              <CardContent>
-                <Typography variant="subtitle2" sx={{ mb: 1.5 }}>Profil Kamu</Typography>
-                <Stack spacing={1.5}>
-                  <TextField label="Nama" size="small" fullWidth value={profileName} onChange={e => setProfileName(e.target.value)} />
-                  <TextField label="Email" size="small" fullWidth value={user.email || ''} disabled helperText="Email tidak bisa diubah" />
-                  <TextField label="Nomor WhatsApp" size="small" fullWidth value={user.phone ? `+${user.phone}` : '—'} disabled helperText="Nomor tidak bisa diubah" />
-                  <Button variant="contained" size="small" onClick={saveProfile} disabled={profileSaving || !profileName.trim()} sx={{ alignSelf: 'flex-start' }}>
-                    {profileSaving ? 'Menyimpan…' : 'Simpan'}
-                  </Button>
-                </Stack>
-              </CardContent>
-            </Card>
 
             <Card sx={{ mb: 1.5 }}>
               <CardContent>
@@ -929,6 +919,23 @@ export default function Dashboard() {
           )}
         </Stack>
       </Popover>
+
+      <Dialog open={profileModalOpen} onClose={() => setProfileModalOpen(false)} maxWidth="xs" fullWidth>
+        <DialogTitle>Profil</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField label="Nama" size="small" fullWidth value={profileName} onChange={e => setProfileName(e.target.value)} autoFocus />
+            <TextField label="Email" size="small" fullWidth value={user.email || ''} disabled helperText="Email tidak bisa diubah" />
+            <TextField label="Nomor WhatsApp" size="small" fullWidth value={user.phone ? `+${user.phone}` : '—'} disabled helperText="Nomor tidak bisa diubah" />
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setProfileModalOpen(false)}>Batal</Button>
+          <Button variant="contained" onClick={saveProfile} disabled={profileSaving || !profileName.trim()}>
+            {profileSaving ? 'Menyimpan…' : 'Simpan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
     </Box>
   );
