@@ -210,7 +210,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       )}
 
       {selected.size > 0 && (
-        <Paper sx={{ position: 'sticky', bottom: 0, p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, zIndex: 10, borderTop: 1, borderColor: 'divider', borderRadius: 0 }}>
+        <Paper sx={{ position: 'fixed', bottom: 0, left: 0, right: 0, p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, zIndex: 10, borderTop: 1, borderColor: 'divider', borderRadius: 0 }}>
           <Chip label={`${selected.size} terpilih`} size="small" color="primary" onDelete={() => setSelected(new Set())} />
           <Box sx={{ flex: 1 }} />
           <Button variant="contained" size="small" startIcon={<LocalOfferIcon />} onClick={() => setTagModalOpen(true)}>
