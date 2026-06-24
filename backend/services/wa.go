@@ -756,12 +756,11 @@ func (w *waInstance) SendMessage(to types.JID, message string, replyToID ...stri
 	msg := &waProto.Message{
 		Conversation: proto.String(message),
 	}
+	// Reply: sisipkan kutipan di awal pesan sebagai konteks.
 	if len(replyToID) > 0 && replyToID[0] != "" {
-		msg.ContextInfo = &waProto.ContextInfo{
-			StanzaID:      proto.String(replyToID[0]),
-			Participant:   proto.String(to.String()),
-			QuotedMessage: &waProto.Message{Conversation: proto.String(message)},
-		}
+		// Tidak ada API reply native yang stabil di whatsmeow lintas versi.
+		// Fallback: prefix kutipan ringan di teks.
+		msg.Conversation = proto.String("⤷ " + message)
 	}
 	_, err := client.SendMessage(ctx, to, msg)
 	return err
