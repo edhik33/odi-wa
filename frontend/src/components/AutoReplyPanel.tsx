@@ -7,6 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import RuleIcon from '@mui/icons-material/RuleOutlined';
 import { useAutoReplies, useSaveAutoReply, useDeleteAutoReply } from '../hooks';
 import type { AutoReply } from '../types';
 import { swalConfirm } from '../services/swal';
