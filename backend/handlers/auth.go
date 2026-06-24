@@ -9,6 +9,7 @@ import (
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
+	"wa-assistant/backend/services"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -367,7 +368,7 @@ func Register(c *gin.Context) {
 	var req struct {
 		Name         string `json:"name"`
 		BusinessName string `json:"business_name"`
-		Username     string `json:"username"`
+		Phone        string `json:"phone"`
 		Email        string `json:"email"`
 		Password     string `json:"password"`
 	}
@@ -375,10 +376,11 @@ func Register(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Invalid request"})
 		return
 	}
-	req.Username = strings.TrimSpace(req.Username)
+	req.Phone = services.NormalizePhone(req.Phone)
 	req.Email = strings.TrimSpace(req.Email)
-	if req.Username == "" || req.Password == "" {
-		c.JSON(400, gin.H{"error": "Username dan password wajib diisi"})
+	username := req.Email // Username = email (auto)
+	if username == "" || req.Password == "" {
+		c.JSON(400, gin.H{"error": "Email dan password wajib diisi"})
 		return
 	}
 	if len(req.Password) < 8 {
@@ -386,13 +388,13 @@ func Register(c *gin.Context) {
 		return
 	}
 	var exists int64
-	if err := database.DB.Model(&models.User{}).Where("username = ? OR (email <> '' AND email = ?)", req.Username, req.Email).Count(&exists).Error; err != nil {
+	if err := database.DB.Model(&models.User{}).Where("username = ? OR email = ?", username, req.Email).Count(&exists).Error; err != nil {
 		log.Printf("Register duplicate check DB error: %v", err)
 		c.JSON(500, gin.H{"error": "Gagal membuat akun"})
 		return
 	}
 	if exists > 0 {
-		c.JSON(409, gin.H{"error": "Username atau email sudah terdaftar"})
+		c.JSON(409, gin.H{"error": "Email sudah terdaftar"})
 		return
 	}
 
@@ -407,7 +409,7 @@ func Register(c *gin.Context) {
 	var user models.User
 	err = database.DB.Transaction(func(tx *gorm.DB) error {
 		tenant := models.Tenant{
-			Name:        firstNonEmpty(req.BusinessName, req.Name, req.Username),
+			Name:        firstNonEmpty(req.BusinessName, req.Name, req.Email),
 			Status:      models.TenantTrial,
 			TrialEndsAt: &trialEnds,
 		}
@@ -417,9 +419,10 @@ func Register(c *gin.Context) {
 
 		user = models.User{
 			TenantID: &tenant.ID,
-			Name:     firstNonEmpty(req.Name, req.Username),
-			Username: req.Username,
+			Name:     firstNonEmpty(req.Name, req.Email),
+			Username: username,
 			Email:    req.Email,
+			Phone:    req.Phone,
 			Password: string(passwordHash),
 			Role:     "owner",
 		}

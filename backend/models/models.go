@@ -91,6 +91,7 @@ type User struct {
 	Role         string  `gorm:"size:24;default:owner" json:"role"`
 	Name         string  `json:"name"`
 	Email        string  `gorm:"size:255" json:"email"`
+	Phone        string  `gorm:"size:32;index" json:"phone"`
 	TenantID     *uint   `gorm:"index" json:"tenant_id"`
 	IsSuperAdmin bool    `gorm:"default:false" json:"is_super_admin"`
 }

@@ -12,8 +12,12 @@ function errorMessage(error: unknown, fallback: string) {
   return fallback;
 }
 
+function normalizePhone(v: string): string {
+  return v.replace(/[^0-9+]/g, '').replace(/^0+/, '62').replace(/^\+/, '').slice(0, 15);
+}
+
 export default function Register() {
-  const [form, setForm] = useState({ name: '', business_name: '', username: '', email: '', password: '' });
+  const [form, setForm] = useState({ name: '', business_name: '', phone: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
@@ -24,14 +28,22 @@ export default function Register() {
     if (errors[k]) setErrors(p => ({ ...p, [k]: '' }));
   };
 
+  const handlePhoneBlur = () => {
+    setForm(f => ({ ...f, phone: normalizePhone(f.phone) }));
+  };
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim()) e.name = 'Wajib diisi';
     if (!form.business_name.trim()) e.business_name = 'Wajib diisi';
-    if (!form.username.trim()) e.username = 'Wajib diisi';
+    if (!form.phone.trim()) {
+      e.phone = 'Wajib diisi';
+    } else if (form.phone.replace(/\D/g, '').length < 8) {
+      e.phone = 'Nomor terlalu pendek';
+    }
     if (!form.email.trim()) e.email = 'Wajib diisi';
-    if (!form.password) e.password = 'Wajib diisi (min. 4 karakter)';
-    else if (form.password.length < 4) e.password = 'Minimal 4 karakter';
+    if (!form.password) e.password = 'Wajib diisi (min. 8 karakter)';
+    else if (form.password.length < 8) e.password = 'Minimal 8 karakter';
     setErrors(e);
     return Object.keys(e).length === 0;
   };
@@ -64,8 +76,9 @@ export default function Register() {
             error={!!errors.business_name} helperText={errors.business_name} sx={{ mb: 1.5 }} />
           <TextField fullWidth label="Nama Kamu" value={form.name} onChange={set('name')} disabled={loading}
             error={!!errors.name} helperText={errors.name} sx={{ mb: 1.5 }} />
-          <TextField fullWidth label="Username" value={form.username} onChange={set('username')} disabled={loading}
-            error={!!errors.username} helperText={errors.username} sx={{ mb: 1.5 }} />
+          <TextField fullWidth label="Nomor WhatsApp" value={form.phone} onChange={set('phone')} onBlur={handlePhoneBlur} disabled={loading}
+            error={!!errors.phone} helperText={errors.phone || 'Contoh: 08123456789'}
+            placeholder="08123456789" sx={{ mb: 1.5 }} />
           <TextField fullWidth label="Email" type="email" value={form.email} onChange={set('email')} disabled={loading}
             error={!!errors.email} helperText={errors.email} sx={{ mb: 1.5 }} />
           <TextField fullWidth label="Password" type="password" value={form.password} onChange={set('password')} disabled={loading}
