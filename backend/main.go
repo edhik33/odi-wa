@@ -21,6 +21,10 @@ func main() {
 	database.Init()
 	services.InitAI()
 	services.InitEmbedding()
+
+	appCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
 	go services.BackfillEmbeddings()
 	services.InitWA(config.Env("DB_PATH", "./wa-assistant.db"))
 	services.SetHandlers(handlers.OnWAMessage, handlers.OnDeviceLinked)
@@ -39,6 +43,8 @@ func main() {
 	// Scheduler pesan terjadwal + pembersihan media lama.
 	handlers.StartScheduler()
 	handlers.StartMediaCleanup(config.EnvInt("MEDIA_RETENTION_DAYS", 30))
+	// Retry pesan WhatsApp yang gagal terkirim agar dashboard tidak berhenti di status palsu.
+	handlers.StartFailedSendRetry(appCtx)
 
 	// Cek langganan tiap jam: expire yang habis & suspend sesi WA tenant non-aktif.
 	handlers.StartSubscriptionSweep(time.Hour)
@@ -46,7 +52,9 @@ func main() {
 	handlers.StartLoginThrottleSweeper()
 
 	r := gin.Default()
-	r.Use(handlers.CORS())
+	maxRequestMB := config.EnvInt("MAX_REQUEST_MB", 32)
+	r.MaxMultipartMemory = int64(config.EnvInt("MAX_MULTIPART_MEMORY_MB", 16)) << 20
+	r.Use(handlers.BodySizeLimit(int64(maxRequestMB) << 20), handlers.CORS())
 
 	api := r.Group("/api")
 	{
@@ -122,7 +130,7 @@ func main() {
 			auth.POST("/agents/:id/send", handlers.InboxSend)
 			auth.POST("/agents/:id/send-media", handlers.InboxSendMedia)
 			auth.POST("/agents/:id/typing", handlers.ChatPresence)
-		auth.DELETE("/agents/:id/messages/:msgId", handlers.RevokeMessage)
+			auth.DELETE("/agents/:id/messages/:msgId", handlers.RevokeMessage)
 			auth.GET("/agents/:id/auto-replies", handlers.ListAutoReplies)
 			auth.POST("/agents/:id/auto-replies", handlers.CreateAutoReply)
 			auth.PUT("/agents/:id/auto-replies/:rid", handlers.UpdateAutoReply)
@@ -166,13 +174,11 @@ func main() {
 	log.Printf("WA Assistant server running on :%s", port)
 
 	// Graceful shutdown: tunggu SIGINT/SIGTERM, lalu beri waktu request berjalan selesai.
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
-	<-quit
+	<-appCtx.Done()
 	log.Println("Mematikan server (graceful)…")
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	if err := srv.Shutdown(ctx); err != nil {
+	if err := srv.Shutdown(shutdownCtx); err != nil {
 		log.Printf("graceful shutdown gagal: %v", err)
 	}
 	log.Println("Server berhenti.")
