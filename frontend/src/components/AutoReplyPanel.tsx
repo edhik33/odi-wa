@@ -95,7 +95,7 @@ export default function AutoReplyPanel({ agentId }: { agentId: number }) {
                 <MenuItem value="prefix">Diawali kata</MenuItem>
               </Select>
             </FormControl>
-            <TextField label="Balasan" value={form.reply ?? ''} onChange={e => { setForm({ ...form, reply: e.target.value }); if (errors.reply) setErrors(p => ({ ...p, reply: '' })); }}
+            <TextField label={`Balasan (${values.reply.length}/1000)`}" value={form.reply ?? ''} onChange={e => { setForm({ ...form, reply: e.target.value }); if (errors.reply) setErrors(p => ({ ...p, reply: '' })); }}
               size="small" multiline rows={4} placeholder="Halo kak! Berikut daftar harga kami: ..." error={!!errors.reply} helperText={errors.reply} />
           </Stack>
         </DialogContent>

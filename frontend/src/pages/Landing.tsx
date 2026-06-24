@@ -1,4 +1,4 @@
-import { Box, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
+import { Box, Link, Grid, Divider, Container, Typography, Button, Grid, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import heroLogo from '../assets/Logo-chatloop-gradients.png';
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
@@ -83,7 +83,7 @@ export default function Landing() {
           <Typography variant="h2" sx={{ fontWeight: 900, fontSize: { xs: 34, md: 52 }, lineHeight: 1.1, mb: 2 }}>
             Pelanggan chat kapan saja, bisnismu tetap menjawab
           </Typography>
-          <Typography variant="h6" sx={{ fontWeight: 400, color: 'text.secondary', mb: 4, maxWidth: 620, mx: 'auto' }}>
+          <Typography variant="body1" sx={{ fontWeight: 400, color: 'text.secondary', mb: 4, maxWidth: 620, mx: 'auto', fontSize: 18 }}>
             ChatLoop membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
@@ -218,13 +218,37 @@ export default function Landing() {
       </Box>
 
       {/* Footer */}
-      <Container maxWidth="lg" sx={{ py: 4, textAlign: 'center' }}>
-        <Typography variant="body2" color="text.secondary">
-          ChatLoop. Asisten WhatsApp yang bikin bisnismu selalu hadir untuk pelanggan.
-        </Typography>
-        <Typography variant="caption" color="text.secondary">© {new Date().getFullYear()} ChatLoop</Typography>
-      </Container>
+      <Box component="footer" sx={{ bgcolor: 'grey.900', color: 'grey.300', py: { xs: 4, md: 6 } }}>
+        <Container maxWidth="lg">
+          <Grid container spacing={3}>
+            <Grid size={{ xs: 12, md: 4 }}>
+              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#fff', mb: 1 }}>ChatLoop</Typography>
+              <Typography variant="body2" sx={{ maxWidth: 280 }}>
+                Asisten WhatsApp AI yang membalas pelanggan otomatis, hafal produkmu, dan tahu kapan harus memanggilmu.
+              </Typography>
+            </Grid>
+            <Grid size={{ xs: 6, md: 4 }}>
+              <Typography sx={{ fontWeight: 700, color: '#fff', mb: 1 }}>Tautan</Typography>
+              <Stack spacing={0.5}>
+                <Link href="#features" color="inherit" underline="hover">Fitur</Link>
+                <Link href="#pricing" color="inherit" underline="hover">Harga</Link>
+                <Link href="#how-it-works" color="inherit" underline="hover">Cara Kerja</Link>
+              </Stack>
+            </Grid>
+            <Grid size={{ xs: 6, md: 4 }}>
+              <Typography sx={{ fontWeight: 700, color: '#fff', mb: 1 }}>Kontak</Typography>
+              <Typography variant="body2">Email: halo@chatloop.id</Typography>
+              <Typography variant="body2">WhatsApp: +62 851-2345-6789</Typography>
+            </Grid>
+          </Grid>
+          <Divider sx={{ my: 3, borderColor: 'grey.700' }} />
+          <Typography variant="caption" color="grey.500">
+            © {new Date().getFullYear()} ChatLoop. Seluruh hak cipta dilindungi.
+          </Typography>
+        </Container>
+      </Box>
     </Box>
+    </>
   );
 }
 

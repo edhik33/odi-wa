@@ -159,7 +159,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
       <Card sx={{ mb: 2 }}>
         <CardContent>
           <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-            <Typography variant="subtitle2">Pesan</Typography>
+            <Stack direction="row" spacing={1} alignItems="center"><Typography variant="subtitle2">Pesan</Typography><Typography variant="caption" color="text.secondary">({message.length}/2000)</Typography></Stack>
             <TemplatePicker agentId={agentId} onPick={b => { setMessage(m => m ? m + '\n' + b : b); if (errors.message) setErrors(p => ({...p, message: ''})); }} />
           </Stack>
           <Box sx={{ mb: 1.25 }}>
