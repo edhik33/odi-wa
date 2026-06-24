@@ -111,7 +111,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
 
   return (
     <Box>
-      <Stack direction="row" sx={{ mb: 1.5, gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
+      <Stack direction="row" sx={{ mb: 0.25, gap: 1, flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between' }}>
         <Typography variant="h6">Kontak</Typography>
         <Stack direction="row" spacing={1}>
           <Button variant="outlined" startIcon={<CampaignIcon />} onClick={handleBroadcast} disabled={contacts.length === 0}>
@@ -120,6 +120,9 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
           <Button variant="contained" startIcon={<AddIcon />} onClick={openAdd}>Tambah</Button>
         </Stack>
       </Stack>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 1.5 }}>
+        Kontak otomatis tersimpan setiap pelanggan chat WhatsApp kamu. Nama diambil dari profil WhatsApp mereka.
+      </Typography>
 
       <TextField
         fullWidth size="small" placeholder="Cari nama atau nomor…"
