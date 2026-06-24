@@ -77,6 +77,7 @@ const NAV_GROUPS = [
     { id: 'follow-up', label: 'Follow-up', icon: <FollowUpIcon fontSize="small" /> },
   ] },
   { section: 'Akun', items: [
+    { id: 'settings', label: 'Profil', icon: <SettingsIcon fontSize="small" /> },
     { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
     { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
   ] },
@@ -926,13 +927,6 @@ export default function Dashboard() {
             <Chip label={user.role === 'admin' ? 'Super Admin' : user.role === 'owner' ? 'Owner' : user.role}
               size="small" color={user.role === 'admin' ? 'error' : 'primary'} variant="outlined" sx={{ alignSelf: 'flex-start' }} />
           )}
-          <Divider />
-          <Button size="small" startIcon={<SettingsIcon />} onClick={() => { setTab('settings'); setProfileAnchor(null); }}>
-            Profil
-          </Button>
-          <Button size="small" startIcon={<LogoutIcon />} color="error" onClick={() => { setProfileAnchor(null); logout(); }}>
-            Logout
-          </Button>
         </Stack>
       </Popover>
 
