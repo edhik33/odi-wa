@@ -325,7 +325,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                   onChange={e => { setText(e.target.value); if (sender) { clearTimeout(typingTimer.current); sendTyping.mutate({ to: sender, active: true }); typingTimer.current = setTimeout(() => sendTyping.mutate({ to: sender, active: false }), 5000); } }} onKeyDown={e => e.key === 'Enter' && send()} onBlur={() => { if (sender) sendTyping.mutate({ to: sender, active: false }); }}
                   inputRef={inputRef}
                   sx={{
-                    '& .MuiInputBase-root': { borderRadius: 2.5 },
+                    '& .MuiInputBase-root': { borderRadius: 999 },
                     '@keyframes blink': { '0%,100%': { opacity: 1 }, '50%': { opacity: 0 } },
                     '& .MuiInputBase-input::after': {
                       content: '""', display: 'inline-block', width: 1, height: 16,
