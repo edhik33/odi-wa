@@ -34,59 +34,69 @@ function Bubble({ side, bg, color, tag, time, name, onReply, children }: {
   const isLeft = side === 'left';
   const initial = name ? name.charAt(0).toUpperCase() : (tag === 'CS' ? 'CS' : '?');
   return (
-    <Stack direction="row" spacing={0.75} sx={{
+    <Box sx={{
       alignSelf: isLeft ? 'flex-start' : 'flex-end',
-      maxWidth: { xs: '88%', md: '74%' },
+      maxWidth: { xs: '86%', md: '68%' },
+      display: 'flex',
       flexDirection: isLeft ? 'row' : 'row-reverse',
+      alignItems: 'flex-end',
+      gap: 0.5,
+      '&:hover .reply-btn': { opacity: 1 },
     }}>
       <Avatar sx={{
-        width: 28, height: 28, fontSize: 12, fontWeight: 700, flexShrink: 0,
-        bgcolor: tag === 'Bot' ? '#25D366' : tag === 'CS' ? 'primary.main' : 'grey.600',
+        width: 26, height: 26, fontSize: 11, fontWeight: 700, flexShrink: 0,
+        bgcolor: tag === 'Bot' ? '#25D366' : tag === 'CS' ? 'primary.main' : 'grey.500',
         color: '#fff',
-        alignSelf: 'flex-end',
       }}>
-        {tag === 'Bot' ? <SmartToyIcon sx={{ fontSize: 16 }} /> : initial}
+        {tag === 'Bot' ? <SmartToyIcon sx={{ fontSize: 15 }} /> : initial}
       </Avatar>
 
-      <Box>
-        {/* Tag label */}
+      <Box sx={{ position: 'relative' }}>
+        {/* Tag — hanya label kecil di atas bubble kanan */}
         {tag && (
-          <Typography variant="caption" color="text.secondary" sx={{
-            display: 'block', textAlign: isLeft ? 'left' : 'right', mb: 0.25,
-            fontWeight: 600, fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.05em',
+          <Typography variant="caption" sx={{
+            display: 'block', textAlign: 'right', mb: 0.15,
+            fontWeight: 600, fontSize: 9, color: 'text.disabled',
+            letterSpacing: 0.3,
           }}>
             {tag}
           </Typography>
         )}
 
-        {/* Bubble */}
+        {/* Bubble body */}
         <Box sx={{
-          px: 1.5, py: 0.75, borderRadius: 1.5,
+          px: 1.25, py: 0.6, borderRadius: '10px',
+          borderTopRightRadius: !isLeft && !tag ? '4px' : '10px',
+          borderTopLeftRadius: isLeft && !time ? '4px' : '10px',
           bgcolor: bg, color: color || 'text.primary',
-          whiteSpace: 'pre-wrap',
-          boxShadow: '0 1px 2px rgba(0,0,0,0.08)',
-          fontSize: '0.88rem', lineHeight: 1.45,
+          whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+          fontSize: '0.88rem', lineHeight: 1.38,
+          boxShadow: '0 1px 1px rgba(0,0,0,0.06)',
         }}>
           {children}
         </Box>
 
-        {/* Reply button */}
-        <IconButton size="small" onClick={onReply}
-          sx={{ opacity: 0, transition: 'opacity 0.15s', '.MuiBox-root:hover &': { opacity: 1 }, alignSelf: 'flex-end', mt: -0.5 }}>
-          <ReplyIcon sx={{ fontSize: 14 }} />
-        </IconButton>
-
-        {/* Timestamp */}
-        {time && (
-          <Typography variant="caption" color="text.disabled" sx={{
-            display: 'block', textAlign: isLeft ? 'left' : 'right',
-            mt: 0.25, fontSize: 10,
-          }}>
-            {time}
-          </Typography>
-        )}
+        {/* Timestamp + reply inline */}
+        <Stack direction="row" spacing={0.5} sx={{
+          justifyContent: isLeft ? 'flex-start' : 'flex-end',
+          alignItems: 'center', mt: 0.15,
+        }}>
+          {time && (
+            <Typography variant="caption" sx={{ fontSize: 10, color: 'text.disabled' }}>
+              {time}
+            </Typography>
+          )}
+          <IconButton
+            size="small"
+            className="reply-btn"
+            onClick={onReply}
+            sx={{ opacity: 0, transition: 'opacity 0.15s', p: 0.2, width: 16, height: 16 }}
+          >
+            <ReplyIcon sx={{ fontSize: 12 }} />
+          </IconButton>
+        </Stack>
       </Box>
-    </Stack>
+    </Box>
   );
 }
 
