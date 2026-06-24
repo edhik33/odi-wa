@@ -411,8 +411,10 @@ func mediaPlaceholder(mediaType, fileName string) string {
 	return ""
 }
 
-func logTurn(agentID uint, num, msg, reply string, fromHuman bool) {
-	database.DB.Create(&models.ChatHistory{AgentID: agentID, Sender: num, Message: msg, Reply: reply, FromHuman: fromHuman})
+func logTurn(agentID uint, num, msg, reply string, fromHuman bool, replyTo ...string) {
+	rt := ""
+	if len(replyTo) > 0 { rt = replyTo[0] }
+	database.DB.Create(&models.ChatHistory{AgentID: agentID, Sender: num, Message: msg, Reply: reply, FromHuman: fromHuman, ReplyTo: rt})
 }
 
 // ListHandoffs: daftar kontak yang sedang butuh ditangani manusia (bot pause).

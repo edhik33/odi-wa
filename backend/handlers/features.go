@@ -184,7 +184,7 @@ func InboxSend(c *gin.Context) {
 		c.JSON(502, gin.H{"error": err.Error()})
 		return
 	}
-	logTurn(id, req.To, "", req.Message, true)
+	logTurn(id, req.To, "", req.Message, true, req.ReplyTo)
 
 	// Kirim manual = ambil alih percakapan: pastikan bot berhenti untuk kontak ini.
 	var cnt int64
