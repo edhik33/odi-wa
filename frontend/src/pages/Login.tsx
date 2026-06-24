@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import logo from '../assets/logo-chatloop-login.png';
 
+declare global { interface Window { turnstile: any; __TURNSTILE_SITE_KEY__?: string } }
+
 function responseStatus(error: unknown) {
   if (typeof error === 'object' && error && 'response' in error) {
     return (error as { response?: { status?: number; headers?: Record<string, string> } }).response;
@@ -18,6 +20,7 @@ export default function Login() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
   const [cooldown, setCooldown] = useState(0);
+  const [turnstileToken, setTurnstile] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -37,7 +40,7 @@ export default function Login() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post('/login', { username: cleanUsername, password });
+      const res = await api.post('/login', { username: cleanUsername, password, turnstile: turnstileToken });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate(res.data.user?.is_super_admin ? '/admin' : '/app');
@@ -53,6 +56,7 @@ export default function Login() {
         setError('Login belum berhasil. Periksa kembali data yang kamu masukkan.');
       }
       setLoading(false);
+      if (window.turnstile) window.turnstile.reset();
     }
   };
 
@@ -73,8 +77,11 @@ export default function Login() {
             autoComplete="current-password"
             onChange={e => { setPassword(e.target.value); if (errors.password) setErrors(p => ({...p, password: ''})); }}
             error={!!errors.password} helperText={errors.password}
-            sx={{ mb: 2.5 }} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
-          <Button fullWidth variant="contained" onClick={handleLogin} disabled={loading || cooldown > 0}
+            sx={{ mb: 2 }} onKeyDown={e => e.key === 'Enter' && handleLogin()} />
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            <div className="cf-turnstile" data-sitekey={window.__TURNSTILE_SITE_KEY__ || ''} data-callback={setTurnstile} data-action="login" />
+          </Box>
+          <Button fullWidth variant="contained" onClick={handleLogin} disabled={loading || cooldown > 0 || !turnstileToken}
             startIcon={loading ? <CircularProgress size={18} color="inherit" /> : null}
             sx={{ py: 1.5, fontWeight: 700 }}>
             {loading ? 'Masuk…' : cooldown > 0 ? `Coba lagi ${cooldown}d` : 'Masuk'}

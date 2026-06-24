@@ -6,6 +6,11 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"encoding/json"
+	"net/http"
+	"net/url"
+	"os"
+
 	"wa-assistant/backend/config"
 	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
@@ -323,8 +328,9 @@ func throttleLogin(c *gin.Context, wait time.Duration) {
 func Login(c *gin.Context) {
 	start := time.Now()
 	var req struct {
-		Username string `json:"username"`
-		Password string `json:"password"`
+		Username  string `json:"username"`
+		Password  string `json:"password"`
+		Turnstile string `json:"turnstile"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": loginGenericError})
@@ -371,9 +377,14 @@ func Register(c *gin.Context) {
 		Phone        string `json:"phone"`
 		Email        string `json:"email"`
 		Password     string `json:"password"`
+		Turnstile    string `json:"turnstile"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "Invalid request"})
+		return
+	}
+	if !verifyTurnstile(req.Turnstile) {
+		c.JSON(400, gin.H{"error": "Verifikasi keamanan gagal, coba lagi"})
 		return
 	}
 	req.Phone = services.NormalizePhone(req.Phone)

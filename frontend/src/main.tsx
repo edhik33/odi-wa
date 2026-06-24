@@ -14,6 +14,9 @@ const queryClient = new QueryClient({
   },
 })
 
+// Cloudflare Turnstile site key — dari env VITE_TURNSTILE_SITE_KEY saat build.
+(window as any).__TURNSTILE_SITE_KEY__ = import.meta.env.VITE_TURNSTILE_SITE_KEY || ''
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>

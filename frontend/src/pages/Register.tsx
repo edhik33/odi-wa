@@ -16,11 +16,14 @@ function normalizePhone(v: string): string {
   return v.replace(/[^0-9+]/g, '').replace(/^0+/, '62').replace(/^\+/, '').slice(0, 15);
 }
 
+declare global { interface Window { turnstile: any; __TURNSTILE_SITE_KEY__?: string } }
+
 export default function Register() {
   const [form, setForm] = useState({ name: '', business_name: '', phone: '', email: '', password: '' });
   const [error, setError] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  const [turnstileToken, setTurnstile] = useState('');
   const navigate = useNavigate();
 
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -54,13 +57,15 @@ export default function Register() {
     setError('');
     setLoading(true);
     try {
-      const res = await api.post('/register', form);
+      const res = await api.post('/register', { ...form, turnstile: turnstileToken });
       localStorage.setItem('token', res.data.token);
       localStorage.setItem('user', JSON.stringify(res.data.user));
       navigate('/app');
     } catch (e) {
       setError(errorMessage(e, 'Gagal mendaftar'));
       setLoading(false);
+      // Reset Turnstile
+      if (window.turnstile) window.turnstile.reset();
     }
   };
 
@@ -83,8 +88,11 @@ export default function Register() {
             error={!!errors.email} helperText={errors.email} sx={{ mb: 1.5 }} />
           <TextField fullWidth label="Password" type="password" value={form.password} onChange={set('password')} disabled={loading}
             error={!!errors.password} helperText={errors.password}
-            sx={{ mb: 2.5 }} onKeyDown={e => e.key === 'Enter' && handleRegister()} />
-          <Button fullWidth variant="contained" onClick={handleRegister} disabled={loading} sx={{ py: 1.5, fontWeight: 700 }}>
+            sx={{ mb: 2 }} onKeyDown={e => e.key === 'Enter' && handleRegister()} />
+          <Box sx={{ mb: 2, display: 'flex', justifyContent: 'center' }}>
+            <div className="cf-turnstile" data-sitekey={window.__TURNSTILE_SITE_KEY__ || ''} data-callback={setTurnstile} />
+          </Box>
+          <Button fullWidth variant="contained" onClick={handleRegister} disabled={loading || !turnstileToken} sx={{ py: 1.5, fontWeight: 700 }}>
             {loading ? 'Mendaftar…' : 'Daftar Sekarang'}
           </Button>
           <Typography variant="body2" sx={{ mt: 2, textAlign: 'center' }}>
