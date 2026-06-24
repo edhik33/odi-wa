@@ -185,11 +185,7 @@ func InboxSend(c *gin.Context) {
 		c.JSON(502, gin.H{"error": err.Error()})
 		return
 	}
-	logTurn(id, req.To, "", req.Message, true, req.ReplyTo)
-	// Update reply_text jika ada
-	if req.ReplyText != "" {
-		database.DB.Model(&models.ChatHistory{}).Where("agent_id = ? AND sender = ? AND reply = ?", id, req.To, req.Message).Order("id desc").Limit(1).Update("reply_text", req.ReplyText)
-	}
+	logTurn(id, req.To, "", req.Message, true, req.ReplyTo, req.ReplyText)
 
 	// Kirim manual = ambil alih percakapan: pastikan bot berhenti untuk kontak ini.
 	var cnt int64
