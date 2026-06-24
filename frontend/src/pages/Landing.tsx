@@ -248,7 +248,6 @@ export default function Landing() {
         </Container>
       </Box>
     </Box>
-    </>
   );
 }
 
