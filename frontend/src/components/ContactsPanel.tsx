@@ -103,12 +103,18 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       </Stack>
 
       {allTags.length > 0 && (
-        <Stack direction="row" sx={{ gap: 0.5, mb: 1.5, flexWrap: 'wrap' }}>
-          {allTags.map(t => (
-            <Chip key={t} label={t} size="small" color={tag === t ? 'primary' : 'default'}
-              variant={tag === t ? 'filled' : 'outlined'} onClick={() => pickTag(t)} />
-          ))}
-        </Stack>
+        <Box sx={{ mb: 1.5 }}>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block', fontWeight: 600 }}>
+            Filter tag
+          </Typography>
+          <Stack direction="row" sx={{ gap: 0.5, flexWrap: 'wrap' }}>
+            {allTags.map(t => (
+              <Chip key={t} label={t} size="small" color={tag === t ? 'primary' : 'default'}
+                variant={tag === t ? 'filled' : 'outlined'} onClick={() => pickTag(t)}
+                sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }} />
+            ))}
+          </Stack>
+        </Box>
       )}
 
       {contacts.length === 0 ? (
