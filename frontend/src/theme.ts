@@ -1,78 +1,164 @@
 import { createTheme } from '@mui/material/styles';
 
-// Tema app dibuat rapat untuk dashboard operasional: sedikit chrome, radius kecil, dan padding konsisten.
+// ────────────────────────────────────────────────────────────
+// Design tokens (sumber kebenaran ada di index.css :root)
+// Theme MUI ini mirror nilai yang sama supaya konsisten.
+// ────────────────────────────────────────────────────────────
+
+const TOKENS = {
+  color: {
+    primary:        '#1F8A50',
+    primaryLight:   '#5DBA7D',
+    primaryDark:    '#005D2C',
+    secondary:      '#4A6357',
+    secondaryLight: '#7A9387',
+    secondaryDark:  '#1D3B30',
+    success:        '#1F8A50',
+    warning:        '#9A6700',
+    error:          '#BA1A1A',
+    bg:             '#F4FBF6',
+    bgAlt:          '#F5F7F5',
+    surface:        '#FFFFFF',
+    surfaceMuted:   '#EDF2ED',
+    text:           '#1A1C19',
+    textSecondary:  '#5A635C',
+    border:         '#DCE5DC',
+    borderLight:    '#ECF2EC',
+  },
+  font: {
+    sans:   'Inter, Roboto, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+    xs:     '12px',
+    sm:     '14px',
+    md:     '16px',
+    lg:     '18px',
+    xl:     '22px',
+    xxl:    '28px',
+    xxxl:   '38px',
+    hero:   '52px',
+  },
+  weight: {
+    normal:    400,
+    medium:   500,
+    semibold: 600,
+    bold:     700,
+    extrabold: 800,
+    black:    900,
+  },
+  radius: {
+    sm: 6,
+    md: 8,
+    lg: 12,
+  },
+  space: {
+    s1: 4, s2: 8, s3: 12, s4: 16, s5: 20,
+    s6: 24, s8: 32, s10: 40, s12: 48,
+  },
+} as const;
+
 const theme = createTheme({
   palette: {
     mode: 'light',
-    primary: { main: '#1F8A50', light: '#5dba7d', dark: '#005d2c', contrastText: '#ffffff' },
-    secondary: { main: '#4A6357', light: '#7a9387', dark: '#1d3b30', contrastText: '#ffffff' },
-    success: { main: '#1F8A50' },
-    warning: { main: '#9a6700' },
-    error: { main: '#ba1a1a' },
-    background: { default: '#F4FBF6', paper: '#FFFFFF' },
-    text: { primary: '#1A1C19', secondary: '#5a635c' },
-    divider: '#DCE5DC',
+    primary:    { main: TOKENS.color.primary,    light: TOKENS.color.primaryLight,  dark: TOKENS.color.primaryDark,    contrastText: '#ffffff' },
+    secondary:  { main: TOKENS.color.secondary,  light: TOKENS.color.secondaryLight, dark: TOKENS.color.secondaryDark, contrastText: '#ffffff' },
+    success:    { main: TOKENS.color.success },
+    warning:    { main: TOKENS.color.warning },
+    error:      { main: TOKENS.color.error },
+    background: { default: TOKENS.color.bg,  paper: TOKENS.color.surface },
+    text:       { primary: TOKENS.color.text, secondary: TOKENS.color.textSecondary },
+    divider:    TOKENS.color.border,
   },
-  shape: { borderRadius: 6 },
+  shape: { borderRadius: TOKENS.radius.sm },
   typography: {
-    fontFamily: 'Inter, Roboto, system-ui, "Helvetica Neue", Arial, sans-serif',
-    h4: { fontWeight: 800, fontSize: '1.35rem', lineHeight: 1.25, letterSpacing: 0 },
-    h5: { fontWeight: 800, fontSize: '1.13rem', lineHeight: 1.3, letterSpacing: 0 },
-    h6: { fontWeight: 750, fontSize: '0.98rem', lineHeight: 1.35, letterSpacing: 0 },
-    subtitle1: { fontWeight: 650, lineHeight: 1.45 },
-    subtitle2: { fontWeight: 750, fontSize: '0.84rem', lineHeight: 1.35 },
-    body1: { fontSize: '0.94rem', lineHeight: 1.45 },
-    body2: { fontSize: '0.86rem', lineHeight: 1.45 },
-    caption: { fontSize: '0.75rem', lineHeight: 1.35 },
-    button: { textTransform: 'none', fontWeight: 600, letterSpacing: 0 },
+    fontFamily: TOKENS.font.sans,
+    h1: { fontWeight: TOKENS.weight.black,    fontSize: TOKENS.font.hero,  lineHeight: 1.1,  letterSpacing: 0 },
+    h2: { fontWeight: TOKENS.weight.black,    fontSize: TOKENS.font.xxxl,  lineHeight: 1.15, letterSpacing: 0 },
+    h3: { fontWeight: TOKENS.weight.extrabold, fontSize: TOKENS.font.xxl, lineHeight: 1.2,  letterSpacing: 0 },
+    h4: { fontWeight: TOKENS.weight.extrabold, fontSize: TOKENS.font.xl,  lineHeight: 1.25, letterSpacing: 0 },
+    h5: { fontWeight: TOKENS.weight.bold,      fontSize: TOKENS.font.lg,   lineHeight: 1.3,  letterSpacing: 0 },
+    h6: { fontWeight: TOKENS.weight.bold,      fontSize: TOKENS.font.md,   lineHeight: 1.35, letterSpacing: 0 },
+    subtitle1: { fontWeight: TOKENS.weight.semibold, fontSize: TOKENS.font.sm, lineHeight: 1.45 },
+    subtitle2: { fontWeight: TOKENS.weight.semibold, fontSize: TOKENS.font.xs, lineHeight: 1.35 },
+    body1: { fontSize: TOKENS.font.sm, lineHeight: 1.45 },
+    body2: { fontSize: TOKENS.font.xs, lineHeight: 1.45 },
+    caption: { fontSize: TOKENS.font.xs, lineHeight: 1.35 },
+    button: { textTransform: 'none', fontWeight: TOKENS.weight.semibold, letterSpacing: 0 },
   },
   components: {
-    MuiPaper: { styleOverrides: { root: { backgroundImage: 'none' } } },
+    MuiPaper: {
+      styleOverrides: { root: { backgroundImage: 'none' } },
+    },
     MuiButtonBase: {
       styleOverrides: { root: { cursor: 'pointer' } },
     },
     MuiButton: {
       defaultProps: { disableElevation: true, size: 'small' },
       styleOverrides: {
-        root: { borderRadius: 5, paddingBlock: 5, paddingInline: 12, minHeight: 32 },
-        sizeLarge: { minHeight: 38, paddingBlock: 7, paddingInline: 16 },
+        root:       { borderRadius: TOKENS.radius.sm, paddingBlock: TOKENS.space.s1, paddingInline: TOKENS.space.s3, minHeight: 32 },
+        sizeLarge:  { minHeight: 40, paddingBlock: TOKENS.space.s2, paddingInline: TOKENS.space.s4 },
       },
     },
     MuiCard: {
       defaultProps: { elevation: 0 },
-      styleOverrides: { root: { borderRadius: 6, border: '1px solid #DCE5DC' } },
+      styleOverrides: { root: { borderRadius: TOKENS.radius.sm, border: `1px solid ${TOKENS.color.border}` } },
     },
     MuiCardContent: {
-      styleOverrides: { root: { padding: 14, '&:last-child': { paddingBottom: 14 } } },
+      styleOverrides: { root: { padding: TOKENS.space.s3, '&:last-child': { paddingBottom: TOKENS.space.s3 } } },
     },
-    MuiDialogTitle: { styleOverrides: { root: { padding: '14px 18px', fontSize: '1rem', fontWeight: 750 } } },
-    MuiDialogContent: { styleOverrides: { root: { padding: '14px 18px' } } },
-    MuiDialogActions: { styleOverrides: { root: { padding: '10px 18px 14px' } } },
-    MuiAlert: { styleOverrides: { root: { borderRadius: 6, padding: '8px 12px' }, message: { padding: '2px 0' } } },
+    MuiDialogTitle: {
+      styleOverrides: { root: { padding: `${TOKENS.space.s3} ${TOKENS.space.s4}`, fontSize: TOKENS.font.md, fontWeight: TOKENS.weight.bold } },
+    },
+    MuiDialogContent: {
+      styleOverrides: { root: { padding: `${TOKENS.space.s3} ${TOKENS.space.s4}` } },
+    },
+    MuiDialogActions: {
+      styleOverrides: { root: { padding: `${TOKENS.space.s2} ${TOKENS.space.s4} ${TOKENS.space.s3}` } },
+    },
+    MuiAlert: {
+      styleOverrides: {
+        root:    { borderRadius: TOKENS.radius.sm, padding: `${TOKENS.space.s2} ${TOKENS.space.s3}` },
+        message: { padding: '2px 0' },
+      },
+    },
     MuiIconButton: {
       defaultProps: { size: 'small' },
-      styleOverrides: { root: { borderRadius: 5, padding: 6 } },
+      styleOverrides: { root: { borderRadius: TOKENS.radius.sm, padding: TOKENS.space.s1 } },
     },
-    MuiOutlinedInput: { styleOverrides: { root: { borderRadius: 6 } } },
-    MuiInputBase: { styleOverrides: { root: { fontSize: '0.9rem' } } },
-    MuiInputLabel: { styleOverrides: { root: { fontSize: '0.9rem' } } },
+    MuiOutlinedInput: {
+      styleOverrides: { root: { borderRadius: TOKENS.radius.sm } },
+    },
+    MuiInputBase: {
+      styleOverrides: { root: { fontSize: TOKENS.font.sm } },
+    },
+    MuiInputLabel: {
+      styleOverrides: { root: { fontSize: TOKENS.font.sm } },
+    },
     MuiChip: {
       styleOverrides: {
-        root: { borderRadius: 5, fontWeight: 650, height: 24 },
-        sizeSmall: { height: 22, fontSize: '0.72rem' },
+        root:      { borderRadius: TOKENS.radius.sm, fontWeight: TOKENS.weight.semibold, height: 24 },
+        sizeSmall: { height: 22, fontSize: TOKENS.font.xs },
       },
     },
-    MuiAvatar: { styleOverrides: { root: { fontWeight: 700 } } },
-    MuiMenuItem: { styleOverrides: { root: { cursor: 'pointer' } } },
-    MuiListItemButton: { styleOverrides: { root: { cursor: 'pointer', minHeight: 42, paddingTop: 6, paddingBottom: 6 } } },
-    MuiListItemText: { styleOverrides: { primary: { fontSize: '0.9rem' }, secondary: { fontSize: '0.75rem' } } },
+    MuiAvatar: {
+      styleOverrides: { root: { fontWeight: TOKENS.weight.bold } },
+    },
+    MuiMenuItem: {
+      styleOverrides: { root: { cursor: 'pointer' } },
+    },
+    MuiListItemButton: {
+      styleOverrides: { root: { cursor: 'pointer', minHeight: 40, paddingTop: TOKENS.space.s1, paddingBottom: TOKENS.space.s1 } },
+    },
+    MuiListItemText: {
+      styleOverrides: { primary: { fontSize: TOKENS.font.sm }, secondary: { fontSize: TOKENS.font.xs } },
+    },
     MuiTableCell: {
       styleOverrides: {
-        root: { borderColor: '#ECF2EC', padding: '8px 10px', fontSize: '0.84rem' },
-        head: { fontWeight: 700, color: '#5a635c' },
+        root: { borderColor: TOKENS.color.borderLight, padding: `${TOKENS.space.s2} ${TOKENS.space.s3}`, fontSize: TOKENS.font.xs },
+        head: { fontWeight: TOKENS.weight.bold, color: TOKENS.color.textSecondary },
       },
     },
-    MuiLinearProgress: { styleOverrides: { root: { borderRadius: 6 } } },
+    MuiLinearProgress: {
+      styleOverrides: { root: { borderRadius: TOKENS.radius.sm } },
+    },
   },
 });
 
