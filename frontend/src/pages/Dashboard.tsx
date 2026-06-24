@@ -22,7 +22,6 @@ import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
 import FollowUpIcon from '@mui/icons-material/ScheduleSendOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
-import PersonIcon from '@mui/icons-material/PersonOutline';
 import { QRCodeSVG } from 'qrcode.react';
 import logo from '../assets/logo-chatloop-1.png';
 import { swalConfirm, swalPrompt, swalAlert, swalToast } from '../services/swal';
@@ -892,7 +891,7 @@ export default function Dashboard() {
               size="small" color={user.role === 'admin' ? 'error' : 'primary'} variant="outlined" sx={{ alignSelf: 'flex-start' }} />
           )}
           <Divider />
-          <Button size="small" startIcon={<PersonIcon />} onClick={() => { setTab('settings'); setProfileAnchor(null); }}>
+          <Button size="small" startIcon={<SettingsIcon />} onClick={() => { setTab('settings'); setProfileAnchor(null); }}>
             Pengaturan Akun
           </Button>
           <Button size="small" startIcon={<LogoutIcon />} color="error" onClick={() => { setProfileAnchor(null); logout(); }}>
