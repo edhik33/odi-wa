@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import {
-  Box, Card, CardContent, Typography, Button, Stack, Chip, IconButton, Alert,
+  Box, Card, CardContent, Typography, Button, Stack, Chip, IconButton, Alert, Checkbox,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, InputAdornment,
   Table, TableBody, TableCell, TableContainer, TableHead, TableRow, Paper, Pagination,
 } from '@mui/material';
@@ -12,7 +12,9 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import ChatIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
+import LocalOfferIcon from '@mui/icons-material/LocalOfferOutlined';
 import { useCrmContacts, useSaveCrmContact, useDeleteCrmContact, useCrmContactsExport } from '../hooks';
+import api from '../services/api';
 
 const EMPTY: Partial<SavedContact> = { number: '', name: '', notes: '', tags: '' };
 
@@ -29,6 +31,9 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const [q, setQ] = useState('');
   const [tag, setTag] = useState('');
   const [page, setPage] = useState(0);
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [bulkTag, setBulkTag] = useState('');
+  const [bulkApplying, setBulkApplying] = useState(false);
 
   const { data, isLoading } = useCrmContacts(agentId, q, tag, page);
   const saveCrmContact = useSaveCrmContact(agentId);
@@ -59,12 +64,45 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
     if (confirm(`Hapus kontak ${ct.name || ct.number}?`)) await deleteCrmContact.mutateAsync(ct.id);
   };
 
-  const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(0); };
+  const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(0); setSelected(new Set()); };
 
   const handleBroadcast = async () => {
     const list = await crmExport.mutateAsync({ q, tag });
     const lines = list.map((c: any) => `${c.number},${c.name || ''}`);
     onBroadcast(lines.join('\n'));
+  };
+
+  const toggleSelect = (id: number) => {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === contacts.length && contacts.length > 0) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(contacts.map(c => c.id)));
+    }
+  };
+
+  const handleBulkTag = async () => {
+    if (!bulkTag.trim() || selected.size === 0) return;
+    setBulkApplying(true);
+    try {
+      await api.post(`/agents/${agentId}/crm/contacts/bulk-tag`, {
+        ids: Array.from(selected),
+        tag: bulkTag.trim(),
+      });
+      setSelected(new Set());
+      setBulkTag('');
+    } catch (e) {
+      // handled silently
+    } finally {
+      setBulkApplying(false);
+    }
   };
 
   return (
@@ -81,7 +119,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
 
       <TextField
         fullWidth size="small" placeholder="Cari nama atau nomor…"
-        value={q} onChange={e => { setQ(e.target.value); setPage(0); }}
+        value={q} onChange={e => { setQ(e.target.value); setPage(0); setSelected(new Set()); }}
         InputProps={{ startAdornment: <InputAdornment position="start"><SearchIcon fontSize="small" /></InputAdornment> }}
         sx={{ mb: 1.5 }}
       />
@@ -115,6 +153,14 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
             <Table size="small">
               <TableHead>
                 <TableRow>
+                  <TableCell sx={{ width: 40, p: 0.5 }}>
+                    <Checkbox
+                      size="small"
+                      checked={contacts.length > 0 && selected.size === contacts.length}
+                      indeterminate={selected.size > 0 && selected.size < contacts.length}
+                      onChange={toggleSelectAll}
+                    />
+                  </TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Nama / Nomor</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Tag</TableCell>
                   <TableCell sx={{ fontWeight: 700 }}>Terakhir Chat</TableCell>
@@ -123,7 +169,10 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
               </TableHead>
               <TableBody>
                 {contacts.map(ct => (
-                  <TableRow key={ct.id} hover>
+                  <TableRow key={ct.id} hover selected={selected.has(ct.id)}>
+                    <TableCell sx={{ p: 0.5 }}>
+                      <Checkbox size="small" checked={selected.has(ct.id)} onChange={() => toggleSelect(ct.id)} />
+                    </TableCell>
                     <TableCell>
                       <Typography sx={{ fontWeight: 600, fontSize: 13 }}>{ct.name || `+${ct.number}`}</Typography>
                       {ct.name && <Typography variant="caption" color="text.secondary">+{ct.number}</Typography>}
@@ -159,6 +208,28 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
         </Paper>
       )}
 
+      {selected.size > 0 && (
+        <Paper variant="outlined" sx={{ p: 1.5, mb: 1, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+          <Chip label={`${selected.size} terpilih`} size="small" color="primary" onDelete={() => setSelected(new Set())} />
+          <TextField
+            size="small"
+            placeholder="Tambah tag…"
+            value={bulkTag}
+            onChange={e => setBulkTag(e.target.value)}
+            sx={{ minWidth: 160 }}
+          />
+          <Button
+            variant="contained"
+            size="small"
+            startIcon={<LocalOfferIcon />}
+            onClick={handleBulkTag}
+            disabled={!bulkTag.trim() || bulkApplying}
+          >
+            {bulkApplying ? '...' : 'Terapkan'}
+          </Button>
+        </Paper>
+      )}
+
       {contacts.length > 0 && (
         <Stack direction="row" sx={{ alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
           <Typography variant="body2" color="text.secondary">
@@ -167,7 +238,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
           <Pagination
             count={Math.ceil((data?.total ?? 0) / (data?.limit ?? 20))}
             page={page + 1}
-            onChange={(_e, p) => setPage(p - 1)}
+            onChange={(_e, p) => { setPage(p - 1); setSelected(new Set()); }}
             size="small"
             siblingCount={0}
             boundaryCount={1}
