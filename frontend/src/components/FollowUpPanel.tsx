@@ -7,6 +7,7 @@ import {
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ScheduleSendIcon from '@mui/icons-material/ScheduleSendOutlined';
 import PersonAddIcon from '@mui/icons-material/PersonAddAlt1Outlined';
 import {
   useFollowUps, useSaveFollowUp, useDeleteFollowUp, useEnrollFollowUp,

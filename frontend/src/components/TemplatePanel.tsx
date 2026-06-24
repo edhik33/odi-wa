@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import {
-  Box, Card, CardContent, Typography, Button, Stack, IconButton, Alert,
+  Box, Card, CardContent, Typography, Button, Stack, IconButton,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import EditIcon from '@mui/icons-material/Edit';
+import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
 import DeleteIcon from '@mui/icons-material/Delete';
 import { useTemplates, useSaveTemplate, useDeleteTemplate } from '../hooks';
 import type { Template } from '../types';
