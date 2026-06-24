@@ -282,8 +282,8 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                         {m.media_type && m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.reply && <span>{m.reply}</span>}
                       </Bubble>
-                      {m.from_human && m.wa_msg_id && (
-                        <IconButton size="small" onClick={() => revokeMsg.mutate({ msgId: m.wa_msg_id, to: sender })}
+                      {m.from_human && (
+                        <IconButton size="small" onClick={() => revokeMsg.mutate({ msgId: m.wa_msg_id || String(m.id), to: sender })}
                           sx={{ alignSelf: 'flex-end', opacity: 0, '&:hover': { opacity: 1 }, p: 0.2, width: 18, height: 18, mt: -3, mr: -1 }}>
                           <DeleteIcon sx={{ fontSize: 14, color: 'error.main' }} />
                         </IconButton>
