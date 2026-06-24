@@ -257,13 +257,19 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		return
 	}
 
-	// 4. Media tanpa caption -> bot belum bisa memahaminya -> alihkan ke manusia.
-	if in.MediaType != "" && in.Text == "" {
-		ack := "Terima kasih kak 🙏 file/medianya sudah kami terima, akan segera kami cek ya."
+	// 4. Media apa pun (foto/file/video/audio) -> AI teks tidak bisa "melihat" isinya,
+	//    jadi JANGAN kirim caption-nya ke AI (kalau dikirim, AI jujur bilang "tidak bisa
+	//    melihat foto" -> user merasa dibohongi). Selalu beri ack ramah + alihkan ke CS,
+	//    baik media polos maupun media yang disertai caption.
+	if in.MediaType != "" {
+		ack := "Terima kasih kak 🙏 fotonya sudah kami terima dan kelihatan kok. Sebentar ya, langsung kami cek dan dibalas. 😊"
+		if in.MediaType != "image" {
+			ack = "Terima kasih kak 🙏 file/medianya sudah kami terima, akan segera kami cek ya."
+		}
 		database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText})
 		send(ack)
 		logRow(displayText, ack)
-		log.Printf("Media tanpa caption (agent %d) dari %s -> dialihkan ke CS", agentID, num)
+		log.Printf("Media (%s) dari %s (agent %d) -> dialihkan ke CS (AI teks tak bisa lihat media)", in.MediaType, num, agentID)
 		return
 	}
 
