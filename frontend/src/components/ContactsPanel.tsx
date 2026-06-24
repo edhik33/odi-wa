@@ -34,6 +34,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const [selected, setSelected] = useState<Set<number>>(new Set());
   const [bulkTag, setBulkTag] = useState('');
   const [bulkApplying, setBulkApplying] = useState(false);
+  const [tagModalOpen, setTagModalOpen] = useState(false);
 
   const { data, isLoading } = useCrmContacts(agentId, q, tag, page);
   const saveCrmContact = useSaveCrmContact(agentId);
@@ -209,23 +210,11 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       )}
 
       {selected.size > 0 && (
-        <Paper variant="outlined" sx={{ p: 1.5, mb: 1, display: 'flex', alignItems: 'center', gap: 1.5, flexWrap: 'wrap' }}>
+        <Paper sx={{ position: 'sticky', bottom: 0, p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, zIndex: 10, borderTop: 1, borderColor: 'divider', borderRadius: 0 }}>
           <Chip label={`${selected.size} terpilih`} size="small" color="primary" onDelete={() => setSelected(new Set())} />
-          <TextField
-            size="small"
-            placeholder="Tambah tag…"
-            value={bulkTag}
-            onChange={e => setBulkTag(e.target.value)}
-            sx={{ minWidth: 160 }}
-          />
-          <Button
-            variant="contained"
-            size="small"
-            startIcon={<LocalOfferIcon />}
-            onClick={handleBulkTag}
-            disabled={!bulkTag.trim() || bulkApplying}
-          >
-            {bulkApplying ? '...' : 'Terapkan'}
+          <Box sx={{ flex: 1 }} />
+          <Button variant="contained" size="small" startIcon={<LocalOfferIcon />} onClick={() => setTagModalOpen(true)}>
+            Tambah Tag
           </Button>
         </Paper>
       )}
@@ -245,6 +234,41 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
           />
         </Stack>
       )}
+
+      <Dialog open={tagModalOpen} onClose={() => { setTagModalOpen(false); setBulkTag(''); }} maxWidth="xs" fullWidth>
+        <DialogTitle>Tambah Tag ke {selected.size} Kontak</DialogTitle>
+        <DialogContent>
+          <Stack spacing={2} sx={{ mt: 1 }}>
+            <TextField
+              label="Tag"
+              size="small"
+              value={bulkTag}
+              onChange={e => setBulkTag(e.target.value)}
+              placeholder="vip, pelanggan tetap"
+              autoFocus
+            />
+            {allTags.length > 0 && (
+              <Box>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                  Tag yang sudah ada:
+                </Typography>
+                <Stack direction="row" sx={{ gap: 0.5, flexWrap: 'wrap' }}>
+                  {allTags.map(t => (
+                    <Chip key={t} label={t} size="small" variant="outlined" onClick={() => setBulkTag(t)}
+                      sx={{ cursor: 'pointer', '&:hover': { opacity: 0.8 } }} />
+                  ))}
+                </Stack>
+              </Box>
+            )}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => { setTagModalOpen(false); setBulkTag(''); }}>Batal</Button>
+          <Button variant="contained" onClick={async () => { await handleBulkTag(); setTagModalOpen(false); }} disabled={!bulkTag.trim() || bulkApplying}>
+            {bulkApplying ? '...' : 'Terapkan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <Dialog open={addOpen || open} onClose={closeDialog} maxWidth="sm" fullWidth>
         <DialogTitle>{addOpen ? 'Tambah Kontak' : 'Edit Kontak'}</DialogTitle>
