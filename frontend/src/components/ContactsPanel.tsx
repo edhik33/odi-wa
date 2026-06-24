@@ -12,7 +12,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SearchIcon from '@mui/icons-material/Search';
 import ChatIcon from '@mui/icons-material/ChatBubbleOutlineOutlined';
 import CampaignIcon from '@mui/icons-material/CampaignOutlined';
-import { useCrmContacts, useSaveContact, useDeleteContact, useExportContacts } from '../hooks';
+import { useCrmContacts, useSaveCrmContact, useDeleteCrmContact, useCrmContactsExport } from '../hooks';
 
 const EMPTY: Partial<SavedContact> = { number: '', name: '', notes: '', tags: '' };
 
@@ -30,9 +30,9 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const [page, setPage] = useState(0);
 
   const { data, isLoading } = useCrmContacts(agentId, q, tag, page);
-  const saveContact = useSaveContact(agentId);
-  const deleteContact = useDeleteContact(agentId);
-  const exportContacts = useExportContacts(agentId);
+  const saveCrmContact = useSaveCrmContact(agentId);
+  const deleteCrmContact = useDeleteCrmContact(agentId);
+  const crmExport = useCrmContactsExport(agentId);
 
   const contacts = data?.contacts || [];
   const allTags = data?.all_tags || [];
@@ -42,12 +42,12 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const closeDialog = () => { setAddOpen(false); setOpen(false); setEdit(null); };
 
   const save = async () => {
-    await saveContact.mutateAsync(form);
+    await saveCrmContact.mutateAsync(form);
     closeDialog();
   };
 
   const remove = async (ct: SavedContact) => {
-    if (confirm(`Hapus kontak ${ct.name || ct.number}?`)) await deleteContact.mutateAsync(ct.id);
+    if (confirm(`Hapus kontak ${ct.name || ct.number}?`)) await deleteCrmContact.mutateAsync(ct.id);
   };
 
   const pickTag = (t: string) => { setTag(prev => prev === t ? '' : t); setPage(0); };
@@ -167,7 +167,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
         </DialogContent>
         <DialogActions>
           <Button onClick={closeDialog}>Batal</Button>
-          <Button variant="contained" onClick={save} disabled={saveContact.isPending}>Simpan</Button>
+          <Button variant="contained" onClick={save} disabled={saveCrmContact.isPending}>Simpan</Button>
         </DialogActions>
       </Dialog>
     </Box>
