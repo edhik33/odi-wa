@@ -93,6 +93,8 @@ export default function Dashboard() {
   const [prompt, setPrompt] = useState('');
   const [tone, setTone] = useState('ramah');
   const [aiEnabled, setAiEnabled] = useState(true);
+  const [showGuardModal, setShowGuardModal] = useState(false);
+  const [guardMissing, setGuardMissing] = useState<string[]>([]);
   const [saved, setSaved] = useState(false);
   const [greetEnabled, setGreetEnabled] = useState(false);
   const [greetMsg, setGreetMsg] = useState('');
@@ -214,12 +216,23 @@ export default function Dashboard() {
   };
 
   const toggleAI = async (val: boolean) => {
-    setAiEnabled(val); // UI langsung berubah (optimistic)
+    if (val) {
+      const missing: string[] = [];
+      if (knowledge.length === 0) missing.push('Knowledge Base kosong');
+      if (!prompt.trim()) missing.push('System Prompt / Persona');
+      if (!tone) missing.push('Tone / gaya bahasa');
+      if (missing.length > 0) {
+        setGuardMissing(missing);
+        setShowGuardModal(true);
+        return;
+      }
+    }
+    setAiEnabled(val);
     try {
       await saveAgentMut.mutateAsync({ ai_enabled: val });
-      swalToast(val ? 'Balasan AI diaktifkan' : 'Balasan AI dimatikan — chat masuk Inbox', 'success');
+      swalToast(val ? 'Balasan AI diaktifkan' : 'Balasan AI dimatikan', 'success');
     } catch {
-      setAiEnabled(!val); // gagal -> kembalikan
+      setAiEnabled(!val);
       swalToast('Gagal mengubah status AI', 'error');
     }
   };
@@ -779,6 +792,40 @@ export default function Dashboard() {
           )}
         </DialogActions>
       </Dialog>
+
+      <Dialog open={showGuardModal} onClose={() => setShowGuardModal(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>⚠️ Lengkapi dulu sebelum aktifkan AI</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Agar AI tidak blunder saat membalas pelanggan, pastikan 3 hal ini:
+          </Typography>
+          <Stack spacing={1.5}>
+            {['Knowledge Base kosong', 'System Prompt / Persona', 'Tone / gaya bahasa'].map((item) => {
+              const isMissing = guardMissing.includes(item);
+              return (
+                <Paper key={item} variant="outlined" sx={{ p: 1.5, display: 'flex', alignItems: 'center', gap: 1.5, borderColor: isMissing ? 'error.light' : 'success.light' }}>
+                  <Typography sx={{ fontSize: 18 }}>{isMissing ? '❌' : '✅'}</Typography>
+                  <Box sx={{ flex: 1 }}>
+                    <Typography variant="body2" sx={{ fontWeight: 600 }}>{item}</Typography>
+                    <Typography variant="caption" color="text.secondary">{isMissing ? 'Belum diisi' : 'Sudah lengkap'}</Typography>
+                  </Box>
+                  {isMissing && item.includes('Knowledge') && (
+                    <Button size="small" variant="outlined" onClick={() => { setShowGuardModal(false); setTab('knowledge'); }}>Isi</Button>
+                  )}
+                  {isMissing && item.includes('Persona') && (
+                    <Button size="small" variant="outlined" onClick={() => { setShowGuardModal(false); setTab('settings'); }}>Isi</Button>
+                  )}
+                </Paper>
+              );
+            })}
+          </Stack>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowGuardModal(false)}>Nanti saja</Button>
+          <Button variant="contained" onClick={() => { setShowGuardModal(false); setTab('knowledge'); }}>Isi Knowledge Base</Button>
+        </DialogActions>
+      </Dialog>
+
     </Box>
   );
 }
