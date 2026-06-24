@@ -252,7 +252,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                     {/* Pesan dari pelanggan (kiri) */}
                     {(m.message || (m.media_type && !m.from_human)) && (
                       <Bubble side="left" bg="#fff" time={fmtTime(m.created_at)} name={selectedName || sender}
-                        replyTo={m.reply_to ? convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.message : ''}
+                        replyTo={m.reply_to ? (convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.message || '💬 Pesan...') : ''}
                         onReply={() => setReplyTo({ id: m.wa_msg_id || String(m.id), text: m.message || '📷 Media' })}>
                         {m.media_type && !m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
                         {m.message && <span>{m.message}</span>}
@@ -266,7 +266,7 @@ export default function InboxPanel({ agentId, aiEnabled, seed }: { agentId: numb
                         color={m.from_human ? '#fff' : 'inherit'}
                         tag={m.from_human ? 'CS' : 'Bot'}
                         time={fmtTime(m.created_at)}
-                        replyTo={m.reply_to ? convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.reply || convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.message : ''}
+                        replyTo={m.reply_to ? (convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.reply || convo?.data?.find((x: any) => x.wa_msg_id === m.reply_to || String(x.id) === m.reply_to)?.message || '💬 Pesan...') : ''}
                         onReply={() => setReplyTo({ id: m.wa_msg_id || String(m.id), text: m.reply || m.message || '📷 Media' })}
                       >
                         {m.media_type && m.from_human && <MediaView agentId={agentId} m={m} token={convo?.media_token || ''} />}
