@@ -437,7 +437,11 @@ func (w *waInstance) RevokeMessage(toNumber string, msgID types.MessageID) error
 		return fmt.Errorf("client WA tidak terhubung")
 	}
 	jid := types.NewJID(toNumber, types.DefaultUserServer)
-	_, err := client.SendMessage(context.Background(), jid, client.BuildRevoke(jid, jid, msgID))
+	ownJID := client.Store.ID
+	if ownJID == nil {
+		return fmt.Errorf("akun WA belum login")
+	}
+	_, err := client.SendMessage(context.Background(), jid, client.BuildRevoke(jid, *ownJID, msgID))
 	return err
 }
 
