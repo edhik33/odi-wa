@@ -109,8 +109,12 @@ func seedSuperAdmin() {
 		return
 	}
 	username := config.Env("SUPERADMIN_USERNAME", "superadmin")
-	password := config.Env("SUPERADMIN_PASSWORD", "superadmin123")
-	hash, _ := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	pw := os.Getenv("SUPERADMIN_PASSWORD")
+	if pw == "" {
+		log.Println("Seeder: SUPERADMIN_PASSWORD tidak diset — skip superadmin")
+		return
+	}
+	hash, _ := bcrypt.GenerateFromPassword([]byte(pw), bcrypt.DefaultCost)
 	DB.Create(&models.User{
 		Name: "Super Admin", Username: username, Email: "super@wa-assistant.local",
 		Password: string(hash), IsSuperAdmin: true, Role: "admin",
@@ -169,16 +173,22 @@ func migrateLegacyTenant() {
 		Where("is_super_admin = ? AND (tenant_id IS NULL OR tenant_id = 0)", false).
 		Updates(map[string]interface{}{"tenant_id": tenant.ID, "role": "owner"})
 
-	// Instalasi baru: belum ada owner sama sekali -> buat admin/admin123.
+	// Instalasi baru: belum ada owner sama sekali → buat owner dari env.
 	var owners int64
 	DB.Model(&models.User{}).Where("tenant_id = ?", tenant.ID).Count(&owners)
 	if owners == 0 {
-		hash, _ := bcrypt.GenerateFromPassword([]byte("admin123"), bcrypt.DefaultCost)
+		ownerUser := config.Env("OWNER_USERNAME", "admin")
+		ownerPass := os.Getenv("OWNER_PASSWORD")
+		if ownerPass == "" {
+			log.Println("Seeder: OWNER_PASSWORD tidak diset — skip owner, harus dibuat manual")
+			return
+		}
+		hash, _ := bcrypt.GenerateFromPassword([]byte(ownerPass), bcrypt.DefaultCost)
 		DB.Create(&models.User{
-			TenantID: &tenant.ID, Name: "Admin", Username: "admin",
+			TenantID: &tenant.ID, Name: "Admin", Username: ownerUser,
 			Email: "admin@wa-assistant.local", Password: string(hash), Role: "owner",
 		})
-		log.Println("Seeder: owner default (admin / admin123) dibuat")
+		log.Printf("Seeder: owner '%s' dibuat", ownerUser)
 	}
 
 	// Pastikan tenant punya minimal 1 agent; adopsi knowledge/chat lama yang yatim.
