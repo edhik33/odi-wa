@@ -121,24 +121,29 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       ) : (
         <Stack spacing={1}>
           {contacts.map(ct => (
-            <Card key={ct.id}>
+            <Card key={ct.id} variant="outlined">
               <CardContent sx={{ py: 1.25, '&:last-child': { pb: 1.25 } }}>
                 <Stack direction="row" sx={{ justifyContent: 'space-between', alignItems: 'flex-start', gap: 1 }}>
-                  <Box sx={{ minWidth: 0 }}>
-                    <Typography sx={{ fontWeight: 600 }}>{ct.name || `+${ct.number}`}</Typography>
+                  <Box sx={{ minWidth: 0, flex: 1 }}>
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 0.25 }}>
+                      <Typography sx={{ fontWeight: 600, fontSize: 14 }}>{ct.name || `+${ct.number}`}</Typography>
+                      {ct.tags && ct.tags.split(',').map(t => t.trim()).filter(Boolean).slice(0, 2).map((t, i) => (
+                        <Chip key={i} label={t} size="small" color="primary" variant="outlined" sx={{ height: 20, fontSize: '0.65rem', fontWeight: 600 }} />
+                      ))}
+                      {ct.tags && ct.tags.split(',').filter(Boolean).length > 2 && (
+                        <Typography variant="caption" color="text.secondary">+{ct.tags.split(',').filter(Boolean).length - 2}</Typography>
+                      )}
+                    </Stack>
                     <Typography variant="caption" color="text.secondary">
-                      {ct.name ? `+${ct.number} · ` : ''}{lastChatLabel(ct.last_at)}
+                      {ct.name ? `+${ct.number}` : ''}{ct.last_at ? ` · ${lastChatLabel(ct.last_at)}` : ''}
                     </Typography>
-                    {ct.tags && (
-                      <Stack direction="row" sx={{ flexWrap: 'wrap', gap: 0.5, mt: 0.5 }}>
-                        {ct.tags.split(',').map(t => t.trim()).filter(Boolean).map((t, i) => (
-                          <Chip key={i} label={t} size="small" variant="outlined" sx={{ height: 20, fontSize: '0.7rem' }} />
-                        ))}
-                      </Stack>
+                    {ct.notes && (
+                      <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, fontSize: 12, whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
+                        {ct.notes.length > 80 ? ct.notes.slice(0, 80) + '…' : ct.notes}
+                      </Typography>
                     )}
-                    {ct.notes && <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, whiteSpace: 'pre-wrap' }}>{ct.notes}</Typography>}
                   </Box>
-                  <Stack direction="row" sx={{ alignItems: 'center', flexShrink: 0 }}>
+                  <Stack direction="row" sx={{ alignItems: 'center', flexShrink: 0, gap: 0.25 }}>
                     <IconButton size="small" title="Buka chat" onClick={() => onOpenChat(ct.number)}><ChatIcon fontSize="small" /></IconButton>
                     <IconButton size="small" title="Edit" onClick={() => openEdit(ct)}><EditIcon fontSize="small" /></IconButton>
                     <IconButton size="small" color="error" title="Hapus" onClick={() => remove(ct)}><DeleteIcon fontSize="small" /></IconButton>
