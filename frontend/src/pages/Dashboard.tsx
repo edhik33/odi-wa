@@ -3,7 +3,7 @@ import {
   Box, Card, CardContent, Typography, Button, Chip, CircularProgress, TextField,
   Stack, IconButton, Paper, Grid, Select, MenuItem, FormControl, InputLabel, Divider,
   Switch, FormControlLabel, Checkbox, Dialog, DialogTitle, DialogContent, DialogActions,
-  Badge,
+  Badge, Popover, Avatar,
 } from '@mui/material';
 import LogoutIcon from '@mui/icons-material/Logout';
 import AddIcon from '@mui/icons-material/Add';
@@ -22,6 +22,7 @@ import TemplateIcon from '@mui/icons-material/TextSnippetOutlined';
 import FollowUpIcon from '@mui/icons-material/ScheduleSendOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
+import PersonIcon from '@mui/icons-material/PersonOutline';
 import { QRCodeSVG } from 'qrcode.react';
 import logo from '../assets/logo-chatloop-1.png';
 import { swalConfirm, swalPrompt, swalAlert, swalToast } from '../services/swal';
@@ -115,7 +116,8 @@ export default function Dashboard() {
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
   const [settingsErrors, setSettingsErrors] = useState<Record<string, string>>({});
-  const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string };
+  const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string };
+  const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
 
   // ---- TanStack Query: data fetching + auto-polling, tanpa useEffect/setInterval manual ----
 
@@ -332,7 +334,12 @@ export default function Dashboard() {
             <img src={logo} alt="ChatLoop" style={{ width: 40, height: 40, flexShrink: 0 }} />
             <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'block' } }}>
               <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>ChatLoop</Typography>
-              <Typography variant="caption" color="text.secondary" sx={{ display: { xs: 'none', md: 'block' } }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: { xs: 'none', md: 'block' }, cursor: 'pointer', '&:hover': { color: 'primary.main' } }}
+                onClick={e => setProfileAnchor(e.currentTarget)}
+              >
                 {user.name || user.username}
               </Typography>
             </Box>
@@ -861,6 +868,38 @@ export default function Dashboard() {
           <Button variant="contained" onClick={() => { setShowGuardModal(false); setTab('knowledge'); }}>Isi Knowledge Base</Button>
         </DialogActions>
       </Dialog>
+
+      <Popover
+        open={!!profileAnchor}
+        anchorEl={profileAnchor}
+        onClose={() => setProfileAnchor(null)}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        slotProps={{ paper: { sx: { p: 2, minWidth: 220 } } }}
+      >
+        <Stack spacing={1.5}>
+          <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center' }}>
+            <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40, fontSize: 16 }}>
+              {(user.name || user.username || 'U').charAt(0).toUpperCase()}
+            </Avatar>
+            <Box>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>{user.name || user.username}</Typography>
+              <Typography variant="caption" color="text.secondary">{user.email || '—'}</Typography>
+            </Box>
+          </Stack>
+          {user.role && (
+            <Chip label={user.role === 'admin' ? 'Super Admin' : user.role === 'owner' ? 'Owner' : user.role}
+              size="small" color={user.role === 'admin' ? 'error' : 'primary'} variant="outlined" sx={{ alignSelf: 'flex-start' }} />
+          )}
+          <Divider />
+          <Button size="small" startIcon={<PersonIcon />} onClick={() => { setTab('settings'); setProfileAnchor(null); }}>
+            Pengaturan Akun
+          </Button>
+          <Button size="small" startIcon={<LogoutIcon />} color="error" onClick={() => { setProfileAnchor(null); logout(); }}>
+            Logout
+          </Button>
+        </Stack>
+      </Popover>
 
     </Box>
   );
