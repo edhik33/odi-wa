@@ -583,7 +583,11 @@ func UpdateAgent(c *gin.Context) {
 	if req.AwayMessage != nil {
 		a.AwayMessage = *req.AwayMessage
 	}
-	database.DB.Save(&a)
+	if err := database.DB.Save(&a).Error; err != nil {
+		log.Printf("Gagal menyimpan agent %d: %v", a.ID, err)
+		c.JSON(500, gin.H{"error": "Gagal menyimpan data"})
+		return
+	}
 	c.JSON(200, gin.H{"data": a})
 }
 
