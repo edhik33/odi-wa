@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   Box, Card, CardContent, Typography, Button, Stack, Chip, IconButton, Alert, Checkbox,
   Dialog, DialogTitle, DialogContent, DialogActions, TextField, CircularProgress, InputAdornment,
@@ -40,6 +41,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
   const saveCrmContact = useSaveCrmContact(agentId);
   const deleteCrmContact = useDeleteCrmContact(agentId);
   const crmExport = useCrmContactsExport(agentId);
+  const queryClient = useQueryClient();
 
   const contacts = data?.data || [];
   const allTags = data?.all_tags || [];
@@ -97,6 +99,7 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
         ids: Array.from(selected),
         tag: bulkTag.trim(),
       });
+      queryClient.invalidateQueries({ queryKey: ['crm-contacts', agentId] });
       setSelected(new Set());
       setBulkTag('');
     } catch (e) {
