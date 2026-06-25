@@ -9,6 +9,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail, useCancelBroadcast } from '../hooks';
+import { swalToast } from '../services/swal';
 import RecipientField from './RecipientField';
 import WhatsAppEditor from './WhatsAppEditor';
 import TemplatePicker from './TemplatePicker';
@@ -39,7 +40,6 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const [minDelay, setMinDelay] = useState(10);
   const [maxDelay, setMaxDelay] = useState(30);
   const [file, setFile] = useState<File | null>(null);
-  const [info, setInfo] = useState('');
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [modalOpen, setModalOpen] = useState(false);
   const [checked, setChecked] = useState<NumberCheck[] | null>(null);
@@ -76,7 +76,6 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const registered = (checked || []).filter(c => c.registered);
 
   const openModal = () => {
-    setInfo('');
     const e: Record<string, string> = {};
     if (!message.trim()) e.message = 'Pesan tidak boleh kosong';
     if (parsed.length === 0) e.recipients = 'Masukkan minimal satu nomor';
@@ -126,7 +125,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
       historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 100);
 
-    setInfo(`Broadcast dimulai untuk ${recipients.length} nomor. Form sudah dibersihkan agar tidak terkirim dua kali. Pantau progres di Riwayat Broadcast.`);
+    swalToast(`Broadcast dimulai untuk ${recipients.length} nomor. Form sudah dibersihkan agar tidak terkirim dua kali.`);
   };
 
   const checking = checkNumbers.isPending || checked === null;
@@ -227,8 +226,6 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
             <TextField type="number" size="small" label="Jeda min (detik)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
             <TextField type="number" size="small" label="Jeda maks (detik)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
           </Stack>
-
-          {info && <Alert severity="success" sx={{ mb: 1.5 }}>{info}</Alert>}
 
           <Button variant="contained" startIcon={<SendIcon />} onClick={openModal}>
             Cek Nomor &amp; Kirim ({parsed.length})
