@@ -14,33 +14,32 @@ import (
 	"wa-assistant/backend/models"
 )
 
-// ShippingResult = satu hasil ongkir dari RajaOngkir.
+// ShippingResult = satu hasil ongkir dari RajaOngkir V2.
 type ShippingResult struct {
 	Courier  string `json:"courier"`
 	Service  string `json:"service"`
 	Cost     int    `json:"cost"`
-	Estimate string `json:"estimate"` // estimasi hari
+	Estimate string `json:"estimate"`
 }
 
-// CheckShippingCost memanggil RajaOngkir untuk cek ongkir.
+// CheckShippingCost memanggil RajaOngkir V2 untuk cek ongkir (POST form-encoded).
 func CheckShippingCost(origin, destination int, weight int, couriers []string) ([]ShippingResult, error) {
 	apiKey := config.Env("RAJAONGKIR_API_KEY", "")
 	if apiKey == "" {
 		return nil, fmt.Errorf("RAJAONGKIR_API_KEY belum diset")
 	}
-	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
 
-	reqURL, _ := url.Parse(baseURL + "/calculate/domestic-cost")
-	q := reqURL.Query()
-	q.Set("origin", fmt.Sprintf("%d", origin))
-	q.Set("destination", fmt.Sprintf("%d", destination))
-	q.Set("weight", fmt.Sprintf("%d", weight))
-	q.Set("courier", strings.Join(couriers, ":"))
-	q.Set("price", "lowest")
-	reqURL.RawQuery = q.Encode()
+	form := url.Values{}
+	form.Set("origin", fmt.Sprintf("%d", origin))
+	form.Set("destination", fmt.Sprintf("%d", destination))
+	form.Set("weight", fmt.Sprintf("%d", weight))
+	form.Set("courier", strings.Join(couriers, ":"))
+	form.Set("price", "lowest")
 
-	httpReq, _ := http.NewRequest("GET", reqURL.String(), nil)
+	reqURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1") + "/calculate/domestic-cost"
+	httpReq, _ := http.NewRequest("POST", reqURL, strings.NewReader(form.Encode()))
 	httpReq.Header.Set("key", apiKey)
+	httpReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(httpReq)
@@ -51,37 +50,38 @@ func CheckShippingCost(origin, destination int, weight int, couriers []string) (
 	body, _ := io.ReadAll(resp.Body)
 
 	var apiResp struct {
-		Data struct {
-			Results []struct {
-				Courier string `json:"courier"`
-				Costs   []struct {
-					Service string `json:"service"`
-					Cost    int    `json:"cost"`
-					Etd     string `json:"etd"`
-				} `json:"costs"`
-			} `json:"results"`
+		Meta struct {
+			Code    int    `json:"code"`
+			Message string `json:"message"`
+		} `json:"meta"`
+		Data []struct {
+			Name    string `json:"name"`
+			Code    string `json:"code"`
+			Service string `json:"service"`
+			Cost    int    `json:"cost"`
+			Etd     string `json:"etd"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return nil, fmt.Errorf("gagal parse respon RajaOngkir: %w", err)
+		return nil, fmt.Errorf("gagal parse respon: %w", err)
+	}
+	if apiResp.Meta.Code != 200 {
+		return nil, fmt.Errorf("RajaOngkir error: %s", apiResp.Meta.Message)
 	}
 
 	var results []ShippingResult
-	for _, r := range apiResp.Data.Results {
-		for _, c := range r.Costs {
-			results = append(results, ShippingResult{
-				Courier:  strings.ToUpper(r.Courier),
-				Service:  c.Service,
-				Cost:     c.Cost,
-				Estimate: c.Etd,
-			})
-		}
+	for _, r := range apiResp.Data {
+		results = append(results, ShippingResult{
+			Courier:  strings.ToUpper(r.Code),
+			Service:  r.Service,
+			Cost:     r.Cost,
+			Estimate: r.Etd,
+		})
 	}
 	return results, nil
 }
 
-// ResolveCity mencari kota dari teks (keyword, substring).
-// Return: slice of ShippingCity yang cocok, atau empty.
+// ResolveCity mencari kota dari teks di DB lokal.
 func ResolveCity(query string) []models.ShippingCity {
 	query = strings.TrimSpace(strings.ToLower(query))
 	if query == "" {
@@ -92,62 +92,74 @@ func ResolveCity(query string) []models.ShippingCity {
 	return cities
 }
 
-// SearchCities = endpoint untuk UI: cari kota asal.
-func SearchCities(query string) []models.ShippingCity {
-	return ResolveCity(query)
-}
-
-// SeedShippingCities = impor daftar kota dari RajaOngkir sekali, simpan ke DB lokal.
-// Panggil via admin trigger atau startup seed.
+// SeedShippingCities = impor daftar kota dari RajaOngkir V2 (POST search).
 func SeedShippingCities() {
 	var count int64
 	database.DB.Model(&models.ShippingCity{}).Count(&count)
 	if count > 100 {
-		return // sudah di-seed, skip
+		return
 	}
-
 	apiKey := config.Env("RAJAONGKIR_API_KEY", "")
 	if apiKey == "" {
 		return
 	}
+
+	// Gunakan search dengan karakter umum untuk tarik semua kota.
+	common := []string{"a", "i", "u", "e", "o", "k", "m", "n", "s", "p", "r", "t", "b", "d", "j", "l", "c"}
 	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
-
-	reqURL, _ := url.Parse(baseURL + "/locations/cities")
-	httpReq, _ := http.NewRequest("GET", reqURL.String(), nil)
-	httpReq.Header.Set("key", apiKey)
-
 	client := &http.Client{Timeout: 15 * time.Second}
-	resp, err := client.Do(httpReq)
-	if err != nil {
-		return
-	}
-	defer resp.Body.Close()
-	body, _ := io.ReadAll(resp.Body)
+	seen := map[int]bool{}
 
-	var apiResp struct {
-		Data []struct {
-			ID       int    `json:"id"`
-			Province string `json:"province"`
-			Type     string `json:"type"`
-			CityName string `json:"city_name"`
-		} `json:"data"`
-	}
-	if err := json.Unmarshal(body, &apiResp); err != nil {
-		return
-	}
+	for _, ch := range common {
+		if count > 1000 { // already enough
+			break
+		}
+		reqURL := fmt.Sprintf("%s/destination/domestic-destination?search=%s&limit=200", baseURL, ch)
+		httpReq, _ := http.NewRequest("POST", reqURL, nil)
+		httpReq.Header.Set("key", apiKey)
 
-	var cities []models.ShippingCity
-	for _, c := range apiResp.Data {
-		fullName := c.Type + " " + c.CityName
-		searchText := strings.ToLower(fullName + " " + c.Province)
-		cities = append(cities, models.ShippingCity{
-			RajaOngkirID: c.ID,
-			Province:     c.Province,
-			Type:         c.Type,
-			CityName:     c.CityName,
-			FullName:     fullName,
-			SearchText:   searchText,
-		})
+		resp, err := client.Do(httpReq)
+		if err != nil {
+			continue
+		}
+		body, _ := io.ReadAll(resp.Body)
+		resp.Body.Close()
+
+		var apiResp struct {
+			Data []struct {
+				ID         int    `json:"id"`
+				Label      string `json:"label"`
+				CityName   string `json:"city_name"`
+				Province   string `json:"province_name"`
+				District   string `json:"district_name"`
+				Subdistrict string `json:"subdistrict_name"`
+				ZipCode    string `json:"zip_code"`
+			} `json:"data"`
+		}
+		if err := json.Unmarshal(body, &apiResp); err != nil {
+			continue
+		}
+
+		for _, c := range apiResp.Data {
+			if seen[c.ID] {
+				continue
+			}
+			seen[c.ID] = true
+			cityType := "Kota"
+			if c.Subdistrict != "" && c.Subdistrict != "-" {
+				cityType = "Kecamatan"
+			}
+			fullName := c.Label
+			searchText := strings.ToLower(c.CityName + " " + c.Province + " " + c.District)
+			database.DB.Create(&models.ShippingCity{
+				RajaOngkirID: c.ID,
+				Province:     c.Province,
+				Type:         cityType,
+				CityName:     c.CityName,
+				FullName:     fullName,
+				SearchText:   searchText,
+			})
+			count++
+		}
 	}
-	database.DB.CreateInBatches(cities, 200)
 }
