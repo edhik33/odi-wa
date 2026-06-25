@@ -113,7 +113,7 @@ export default function Dashboard() {
   const [genCount, setGenCount] = useState(10);
   const [tpl, setTpl] = useState({ name: '', price: '', specs: '', warranty: '', order: '', shipping: '', payment: '', usp: '', notes: '' });
   const [showTpl, setShowTpl] = useState(false);
-  const [bizType, setBizType] = useState('');
+  const [bizType, setBizType] = useState('produk_fisik');
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
