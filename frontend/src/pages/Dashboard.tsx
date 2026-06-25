@@ -125,6 +125,10 @@ export default function Dashboard() {
   const [closingSchema, setClosingSchema] = useState('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [loadingNames, setLoadingNames] = useState(false);
+  // Setup Wizard
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardBiz, setWizardBiz] = useState({ biz_name: '', biz_type: 'produk_fisik', products: '', price_range: '', order_flow: '', shipping: '', hours: '08:00-21:00', cs_name: '' });
+  const [wizardLoading, setWizardLoading] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string; phone?: string };
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
   const [profileName, setProfileName] = useState(user.name || '');
@@ -466,7 +470,11 @@ export default function Dashboard() {
       <Box component="main" sx={{ flex: 1, p: { xs: 1.25, md: 2 }, overflowY: 'auto', height: { md: '100vh' }, minHeight: 0, width: '100%', minWidth: 0 }}>
         {tab === 'dashboard' && (
           <Box>
-            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
+            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}>
+              <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
+                Setup Cepat
+              </Button>
+            </PageHeader>
 
             <Card sx={{ mb: 1.5, borderLeft: '4px solid', borderColor: aiEnabled ? 'success.main' : 'grey.400', bgcolor: aiEnabled ? 'rgba(37,211,102,0.07)' : 'action.hover' }}>
               <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -1019,6 +1027,82 @@ export default function Dashboard() {
           <Button onClick={() => setProfileModalOpen(false)}>Batal</Button>
           <Button variant="contained" onClick={saveProfile} disabled={profileSaving || !profileName.trim()}>
             {profileSaving ? 'Menyimpan…' : 'Simpan'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Setup Wizard */}
+      <Dialog open={wizardOpen} onClose={() => setWizardOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <AutoAwesomeIcon sx={{ color: '#25D366' }} /> Setup Cepat — Isi Profil Bisnis
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
+            AI akan otomatis generate System Prompt + 15 FAQ Knowledge Base dari profil ini.
+          </Typography>
+          <Grid container spacing={1}>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Nama Bisnis *" value={wizardBiz.biz_name}
+                onChange={e => setWizardBiz({...wizardBiz, biz_name: e.target.value})} required />
+            </Grid>
+            <Grid size={6}>
+              <FormControl fullWidth size="small">
+                <InputLabel>Jenis Bisnis</InputLabel>
+                <Select value={wizardBiz.biz_type} label="Jenis Bisnis"
+                  onChange={e => setWizardBiz({...wizardBiz, biz_type: e.target.value})}>
+                  <MenuItem value="produk_fisik">Produk Fisik</MenuItem>
+                  <MenuItem value="produk_digital">Produk Digital</MenuItem>
+                  <MenuItem value="jasa">Jasa/Layanan</MenuItem>
+                </Select>
+              </FormControl>
+            </Grid>
+            <Grid size={12}>
+              <TextField fullWidth size="small" label="Produk/Layanan" value={wizardBiz.products}
+                onChange={e => setWizardBiz({...wizardBiz, products: e.target.value})}
+                placeholder="mis: Baju muslim, gamis, hijab" />
+            </Grid>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Range Harga" value={wizardBiz.price_range}
+                onChange={e => setWizardBiz({...wizardBiz, price_range: e.target.value})}
+                placeholder="Rp 50rb - 300rb" />
+            </Grid>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Nama CS" value={wizardBiz.cs_name}
+                onChange={e => setWizardBiz({...wizardBiz, cs_name: e.target.value})}
+                placeholder="mis: Admin Maya" />
+            </Grid>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Cara Order" value={wizardBiz.order_flow}
+                onChange={e => setWizardBiz({...wizardBiz, order_flow: e.target.value})}
+                placeholder="Transfer dulu, kirim 2-3 hari" />
+            </Grid>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Pengiriman" value={wizardBiz.shipping}
+                onChange={e => setWizardBiz({...wizardBiz, shipping: e.target.value})}
+                placeholder="JNE, J&T, seluruh Indo" />
+            </Grid>
+            <Grid size={6}>
+              <TextField fullWidth size="small" label="Jam Operasional" value={wizardBiz.hours}
+                onChange={e => setWizardBiz({...wizardBiz, hours: e.target.value})}
+                placeholder="08:00 - 21:00" />
+            </Grid>
+          </Grid>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setWizardOpen(false)} disabled={wizardLoading}>Batal</Button>
+          <Button variant="contained" color="success" disabled={wizardLoading || !wizardBiz.biz_name}
+            onClick={async () => {
+              setWizardLoading(true);
+              try {
+                const res = await api.post(`/agents/${agentId}/setup-wizard`, wizardBiz);
+                swalToast(`Setup selesai! ${res.data.knowledge} FAQ + System Prompt dibuat.`, 'success');
+                setWizardOpen(false);
+                window.location.reload();
+              } catch (e: any) { swalToast(e?.response?.data?.error || 'Gagal', 'error'); }
+              setWizardLoading(false);
+            }}
+            startIcon={wizardLoading ? <CircularProgress size={16} /> : <AutoAwesomeIcon />}>
+            {wizardLoading ? 'Generating…' : 'Generate AI Setup'}
           </Button>
         </DialogActions>
       </Dialog>

@@ -33,8 +33,8 @@ func GenerateKnowledge(c *gin.Context) {
 		c.JSON(400, gin.H{"error": "Text is required"})
 		return
 	}
-	if req.Count <= 0 { req.Count = 5 }
-	if req.Count > 10 { req.Count = 10 }
+	if req.Count <= 0 { req.Count = 10 }
+	if req.Count > 20 { req.Count = 20 }
 
 	bizCtx := bizPrompts[req.BizType]
 	if bizCtx == "" {
@@ -141,4 +141,117 @@ func ImportKnowledge(c *gin.Context) {
 		}
 	}
 	c.JSON(200, gin.H{"created": created, "updated": updated})
+}
+
+// SetupWizardReq = input profil bisnis dari user.
+type SetupWizardReq struct {
+	BizName    string `json:"biz_name"`
+	BizType    string `json:"biz_type"`
+	Products   string `json:"products"`
+	PriceRange string `json:"price_range"`
+	OrderFlow  string `json:"order_flow"`
+	Shipping   string `json:"shipping"`
+	Hours      string `json:"hours"`
+	CSName     string `json:"cs_name"`
+}
+
+// SetupWizard — satu form profil bisnis, auto-generate System Prompt + Knowledge 15 Q&A.
+func SetupWizard(c *gin.Context) {
+	aid, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	var req SetupWizardReq
+	if err := c.ShouldBindJSON(&req); err != nil || req.BizName == "" {
+		c.JSON(400, gin.H{"error": "Nama bisnis wajib diisi"})
+		return
+	}
+
+	cfg := openai.DefaultConfig(config.EnvRequired("OPENAI_API_KEY"))
+	cfg.BaseURL = config.Env("OPENAI_BASE_URL", "https://api.deepseek.com/v1")
+	client := openai.NewClientWithConfig(cfg)
+
+	// 1. Generate System Prompt
+	sysPrompt := buildWizardSystemPrompt(req)
+	resp1, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model:  config.Env("OPENAI_MODEL", "deepseek-v4-pro"),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "Kamu adalah prompt engineer. Buat persona AI customer service WhatsApp dalam bahasa Indonesia. Ramah, santai, jelas. Maks 6 kalimat."},
+			{Role: openai.ChatMessageRoleUser, Content: sysPrompt},
+		},
+		MaxTokens: 500,
+	})
+	systemPrompt := ""
+	if err == nil && len(resp1.Choices) > 0 {
+		systemPrompt = strings.TrimSpace(resp1.Choices[0].Message.Content)
+	}
+	if systemPrompt != "" {
+		database.DB.Model(&models.Agent{}).Where("id = ?", aid).
+			Update("system_prompt", systemPrompt)
+	}
+
+	// 2. Generate Knowledge FAQ (15 Q&A)
+	kbPrompt := fmt.Sprintf(`Buatkan 15 pasangan Tanya-Jawab FAQ knowledge base dari profil bisnis berikut.
+Gunakan bahasa Indonesia natural dan ramah.
+Fokus pada pertanyaan yang sering ditanyakan pelanggan.
+Format output HARUS JSON array: [{"question": "...", "answer": "...", "tags": "kata,kunci"}]
+
+Profil bisnis:
+Nama: %s | Produk: %s | Harga: %s | Order: %s | Kirim: %s | Jam: %s`, req.BizName, req.Products, req.PriceRange, req.OrderFlow, req.Shipping, req.Hours)
+
+	resp2, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
+		Model:  config.Env("OPENAI_MODEL", "deepseek-v4-pro"),
+		Messages: []openai.ChatCompletionMessage{
+			{Role: openai.ChatMessageRoleSystem, Content: "Kamu adalah generator knowledge base FAQ. Output HANYA JSON array."},
+			{Role: openai.ChatMessageRoleUser, Content: kbPrompt},
+		},
+		MaxTokens: 3000,
+	})
+	if err != nil {
+		c.JSON(500, gin.H{"error": "Gagal generate knowledge: " + err.Error()})
+		return
+	}
+
+	content := strings.TrimSpace(resp2.Choices[0].Message.Content)
+	content = strings.TrimPrefix(content, "```json")
+	content = strings.TrimPrefix(content, "```")
+	content = strings.TrimSuffix(content, "```")
+
+	var items []struct {
+		Question string `json:"question"`
+		Answer   string `json:"answer"`
+		Tags     string `json:"tags"`
+	}
+	if err := json.Unmarshal([]byte(content), &items); err != nil {
+		c.JSON(500, gin.H{"error": "Format AI tidak valid", "raw": content})
+		return
+	}
+
+	var created int
+	for _, item := range items {
+		k := models.Knowledge{AgentID: aid, Question: item.Question, Answer: item.Answer, Tags: item.Tags}
+		database.DB.Create(&k)
+		services.IndexKnowledge(&k)
+		created++
+	}
+
+	c.JSON(200, gin.H{
+		"message":       "Setup selesai!",
+		"system_prompt": systemPrompt,
+		"knowledge":     created,
+	})
+}
+
+func buildWizardSystemPrompt(req SetupWizardReq) string {
+	return fmt.Sprintf(`Buat persona AI customer service WhatsApp untuk bisnis ini:
+Nama Bisnis: %s
+Jenis: %s
+Produk: %s
+Range Harga: %s
+Cara Order: %s
+Pengiriman: %s
+Jam Operasional: %s
+Nama CS: %s
+
+Buat system prompt singkat (maks 6 kalimat) yang mencakup: siapa AI ini, produk apa yang dijual, cara order, gaya bicara (ramah, panggil "kak"), dan aturan closing (tanya nama+produk+nomer).`, req.BizName, req.BizType, req.Products, req.PriceRange, req.OrderFlow, req.Shipping, req.Hours, req.CSName)
 }

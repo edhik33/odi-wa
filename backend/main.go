@@ -124,6 +124,7 @@ func main() {
 			auth.PUT("/agents/:id/settings", handlers.UpdateSettings)
 			auth.POST("/agents/:id/settings/test-sheet", handlers.TestSheetConnection)
 			auth.GET("/agents/:id/settings/sheet-names", handlers.ListSheetNames)
+			auth.POST("/agents/:id/setup-wizard", handlers.SetupWizard)
 			auth.GET("/agents/:id/knowledge", handlers.ListKnowledge)
 			auth.POST("/agents/:id/knowledge", handlers.CreateKnowledge)
 			auth.POST("/agents/:id/knowledge/generate", handlers.GenerateKnowledge)
