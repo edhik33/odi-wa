@@ -470,13 +470,7 @@ export default function Dashboard() {
       <Box component="main" sx={{ flex: 1, p: { xs: 1.25, md: 2 }, overflowY: 'auto', height: { md: '100vh' }, minHeight: 0, width: '100%', minWidth: 0 }}>
         {tab === 'dashboard' && (
           <Box>
-            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}
-              action={
-                <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
-                  Setup Cepat
-                </Button>
-              }
-            />
+            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
 
             <Card sx={{ mb: 1.5, borderLeft: '4px solid', borderColor: aiEnabled ? 'success.main' : 'grey.400', bgcolor: aiEnabled ? 'rgba(37,211,102,0.07)' : 'action.hover' }}>
               <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
@@ -553,23 +547,25 @@ export default function Dashboard() {
 
         {tab === 'knowledge' && (
           <Box>
-            <PageHeader title={<>Knowledge Base {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
+            <PageHeader title={<>Knowledge Base {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}
+              action={
+                <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
+                  Setup Cepat
+                </Button>
+              }
+            />
 
             <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
               <Grid size={{ xs: 12, md: 6 }}>
                 <Card sx={{ height: '100%', borderColor: 'primary.main' }}>
                   <CardContent>
-                    <Stack direction="row" spacing={1} sx={{ mb: 1, alignItems: 'center' }}>
-                      <Typography variant="subtitle2">
-                        <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
-                        Generate dengan AI
-                      </Typography>
-                      <ToggleButtonGroup size="small" value={showTpl ? 'tpl' : 'free'} exclusive
-                        onChange={() => setShowTpl(!showTpl)} sx={{ ml: 'auto' }}>
-                        <ToggleButton value="free" sx={{ px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}>Free Text</ToggleButton>
-                        <ToggleButton value="tpl" sx={{ px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}>Template</ToggleButton>
-                      </ToggleButtonGroup>
-                    </Stack>
+                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                      <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
+                      Generate FAQ dengan AI
+                    </Typography>
+                    <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block' }}>
+                      Tulis info tentang produk/layanan kamu. AI akan generate FAQ otomatis.
+                    </Typography>
 
                     <FormControl size="small" fullWidth sx={{ mb: 1 }}>
                       <InputLabel>Jenis Bisnis</InputLabel>
@@ -581,35 +577,14 @@ export default function Dashboard() {
                       </Select>
                     </FormControl>
 
-                    {showTpl ? (
-                      <Stack spacing={0.8}>
-                        {[
-                          ['Nama Produk', 'name', 'iPhone 15, Template Canva, ...'],
-                          ['Harga', 'price', 'Rp 12.000.000 (128GB)'],
-                          ['Spesifikasi', 'specs', 'Chip A16, layar 6.1, kamera 48MP'],
-                          ['Garansi', 'warranty', '1 tahun resmi / update gratis 3 bulan'],
-                          ['Cara Order', 'order', 'WA ke 08xxx / Transfer + konfirmasi'],
-                          ['Pengiriman', 'shipping', 'GoSend 1-2 jam / Email instan'],
-                          ['Pembayaran', 'payment', 'Transfer BCA, QRIS, GoPay'],
-                          ['Keunggulan', 'usp', 'USB-C pertama, Dynamic Island / Tinggal edit'],
-                          ['Catatan', 'notes', 'Stok terbatas / Bukan file PSD'],
-                        ].map(([label, key, placeholder]) => (
-                          <TextField key={key} size="small" label={label} fullWidth
-                            value={(tpl as any)[key]} placeholder={placeholder}
-                            onChange={e => setTpl(p => ({ ...p, [key]: e.target.value }))}
-                          />
-                        ))}
-                      </Stack>
-                    ) : (
-                      <TextField multiline rows={5} fullWidth size="small" value={genText}
-                        onChange={e => setGenText(e.target.value)}
-                        placeholder="Tulis atau paste teks tentang produk/layanan kamu. AI akan mengubahnya jadi tanya-jawab otomatis..."
-                        sx={{ mb: 1 }} />
-                    )}
+                    <TextField multiline rows={5} fullWidth size="small" value={genText}
+                      onChange={e => setGenText(e.target.value)}
+                      placeholder="Tulis atau paste teks tentang produk/layanan kamu. AI akan mengubahnya jadi tanya-jawab otomatis..."
+                      sx={{ mb: 1 }} />
 
-                    <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: 'center' }}>
-                      <TextField type="number" size="small" label="Jumlah" value={genCount}
-                        onChange={e => setGenCount(Number(e.target.value))} sx={{ width: 80 }} />
+                    <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
+                      <TextField type="number" size="small" label="Jumlah FAQ" value={genCount}
+                        onChange={e => setGenCount(Number(e.target.value))} sx={{ width: 90 }} />
                       <Button variant="contained" size="small" onClick={generateKnowledge} disabled={generateKnowledgeMut.isPending}
                         startIcon={generateKnowledgeMut.isPending ? <CircularProgress size={14} /> : <AutoAwesomeIcon />}>
                         Generate
