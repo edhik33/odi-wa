@@ -113,6 +113,7 @@ export default function Dashboard() {
   const [genCount, setGenCount] = useState(5);
   const [tpl, setTpl] = useState({ name: '', price: '', specs: '', warranty: '', order: '', shipping: '', payment: '', usp: '', notes: '' });
   const [showTpl, setShowTpl] = useState(false);
+  const [bizType, setBizType] = useState('');
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
@@ -313,7 +314,7 @@ export default function Dashboard() {
     setKnowledgeErrors(e);
     if (Object.keys(e).length > 0) return;
     try {
-      await generateKnowledgeMut.mutateAsync({ text: genText, count: genCount });
+      await generateKnowledgeMut.mutateAsync({ text: genText, count: genCount, biz_type: bizType || undefined });
       setGenText('');
     } catch {
       swalToast('Gagal generate knowledge', 'error');
@@ -549,6 +550,16 @@ export default function Dashboard() {
                         <ToggleButton value="tpl" sx={{ px: 1.5, textTransform: 'none', fontSize: '0.75rem' }}>Template</ToggleButton>
                       </ToggleButtonGroup>
                     </Stack>
+
+                    <FormControl size="small" fullWidth sx={{ mb: 1 }}>
+                      <InputLabel>Jenis Bisnis</InputLabel>
+                      <Select value={bizType} label="Jenis Bisnis" onChange={e => setBizType(e.target.value)}>
+                        <MenuItem value="">✨ Umum (semua jenis)</MenuItem>
+                        <MenuItem value="produk_fisik">📦 Produk Fisik</MenuItem>
+                        <MenuItem value="produk_digital">💻 Produk Digital</MenuItem>
+                        <MenuItem value="jasa">🔧 Jasa / Layanan</MenuItem>
+                      </Select>
+                    </FormControl>
 
                     {showTpl ? (
                       <Stack spacing={0.8}>

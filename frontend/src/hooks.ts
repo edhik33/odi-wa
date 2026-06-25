@@ -548,7 +548,7 @@ export function useDeleteKnowledge(agentId: number) {
 export function useGenerateKnowledge(agentId: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (body: { text: string; count: number }) =>
+    mutationFn: async (body: { text: string; count: number; biz_type?: string }) =>
       (await api.post(`/agents/${agentId}/knowledge/generate`, body)).data,
     onSuccess: () => qc.invalidateQueries({ queryKey: ['agent', agentId, 'knowledge'] }),
   });

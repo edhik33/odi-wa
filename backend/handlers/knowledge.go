@@ -15,8 +15,15 @@ import (
 )
 
 type GenerateReq struct {
-	Text  string `json:"text"`
-	Count int    `json:"count"` // jumlah Q&A yang diinginkan (default 5)
+	Text    string `json:"text"`
+	Count   int    `json:"count"`
+	BizType string `json:"biz_type"` // "produk_fisik", "produk_digital", "jasa", "" = generik
+}
+
+var bizPrompts = map[string]string{
+	"produk_fisik":   "pelanggan yang ingin tahu harga, spesifikasi, bahan, ukuran, cara order, pengiriman, garansi, dan pembayaran produk fisik",
+	"produk_digital": "pelanggan yang ingin tahu harga, format file, cara akses/download, lisensi, kompatibilitas, fitur, dan cara pembelian produk digital",
+	"jasa":           "pelanggan yang ingin tahu harga, durasi, proses, syarat, output, revisi, dan cara booking jasa/layanan",
 }
 
 // GenerateKnowledge generates Q&A pairs from raw text using AI
@@ -29,8 +36,14 @@ func GenerateKnowledge(c *gin.Context) {
 	if req.Count <= 0 { req.Count = 5 }
 	if req.Count > 10 { req.Count = 10 }
 
-	prompt := `Buatkan ` + intToStr(req.Count) + ` pasangan Tanya-Jawab dalam format JSON dari teks berikut.
-Gunakan bahasa Indonesia yang natural.
+	bizCtx := bizPrompts[req.BizType]
+	if bizCtx == "" {
+		bizCtx = "pelanggan yang ingin tahu informasi penting tentang produk/layanan"
+	}
+
+	prompt := `Buatkan ` + intToStr(req.Count) + ` pasangan Tanya-Jawab FAQ dalam format JSON dari teks berikut.
+Fokus pada pertanyaan yang sering ditanyakan ` + bizCtx + `.
+Gunakan bahasa Indonesia yang natural dan ramah, seolah kamu customer service yang membantu.
 Format output HARUS JSON array persis seperti ini:
 [{"question": "pertanyaan", "answer": "jawaban", "tags": "kata,kunci"}]
 
@@ -44,7 +57,7 @@ Teks sumber:
 	resp, err := client.CreateChatCompletion(context.Background(), openai.ChatCompletionRequest{
 		Model: config.Env("OPENAI_MODEL", "deepseek-v4-pro"),
 		Messages: []openai.ChatCompletionMessage{
-			{Role: openai.ChatMessageRoleSystem, Content: "Kamu adalah generator knowledge base. Output HANYA JSON array."},
+			{Role: openai.ChatMessageRoleSystem, Content: "Kamu adalah AI yang jago membuat FAQ knowledge base untuk bisnis. Pahami konteks bisnisnya, buat pertanyaan yang realistis dari sudut pandang pelanggan. Output HANYA JSON array."},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
 		MaxTokens: 1000,
