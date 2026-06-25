@@ -461,17 +461,17 @@ func detectShippingIntent(msg string) bool {
 
 func extractDestinationCity(msg string) string {
 	msg = strings.ToLower(msg)
-	// Cari pola: "ke kota", "tujuan kota", "ongkir ke kota", "kirim ke kota"
 	patterns := []string{"ke ", "tujuan ", "ongkir ", "kirim "}
+	stopWords := map[string]bool{"berapa": true, "kak": true, "ya": true, "berapa?": true, "dong": true, "sih": true, "nih": true}
 	for _, p := range patterns {
 		if idx := strings.Index(msg, p); idx >= 0 {
 			rest := msg[idx+len(p):]
-			// Ambil kata pertama setelah "ke "/"tujuan " dll
-			word := strings.Fields(rest)
-			if len(word) > 0 {
-				candidate := word[0]
-				if len(word) > 1 && word[1] != "" {
-					candidate = word[0] + " " + word[1] // "kota bandung" atau "bandung barat"
+			words := strings.Fields(rest)
+			if len(words) > 0 {
+				candidate := words[0]
+				// Ambil kata kedua kalau bukan stop word
+				if len(words) > 1 && !stopWords[words[1]] {
+					candidate = words[0] + " " + words[1]
 				}
 				return strings.TrimSpace(candidate)
 			}
