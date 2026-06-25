@@ -118,6 +118,11 @@ export default function Dashboard() {
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
   const KNOWLEDGE_PER_PAGE = 10;
   const [settingsErrors, setSettingsErrors] = useState<Record<string, string>>({});
+  // Google Sheets integration
+  const [sheetUrl, setSheetUrl] = useState('');
+  const [sheetName, setSheetName] = useState('Leads');
+  const [sheetSync, setSheetSync] = useState(false);
+  const [closingSchema, setClosingSchema] = useState('');
   const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string; phone?: string };
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
   const [profileName, setProfileName] = useState(user.name || '');
@@ -176,6 +181,8 @@ export default function Dashboard() {
       setGreetEnabled(!!a.greeting_enabled); setGreetMsg(a.greeting_message || '');
       setBhEnabled(!!a.business_hours_enabled); setBhStart(a.business_start || '08:00');
       setBhEnd(a.business_end || '21:00'); setAwayMsg(a.away_message || '');
+      setSheetUrl(a.spreadsheet_url || ''); setSheetName(a.spreadsheet_sheet_name || 'Leads');
+      setSheetSync(!!a.sheet_sync_enabled);
     }
   }, [agentId, agents]);
 
@@ -240,6 +247,7 @@ export default function Dashboard() {
         name: agentName, system_prompt: prompt, tone,
         greeting_enabled: greetEnabled, greeting_message: greetMsg,
         business_hours_enabled: bhEnabled, business_start: bhStart, business_end: bhEnd, away_message: awayMsg,
+        spreadsheet_url: sheetUrl, spreadsheet_sheet_name: sheetName, sheet_sync_enabled: sheetSync,
       });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
@@ -741,6 +749,50 @@ export default function Dashboard() {
                 </Grid>
 
                 <Button variant="contained" onClick={saveAgent} disabled={saveAgentMut.isPending} sx={{ mt: 1.5 }}>{saved ? 'Tersimpan ✓' : saveAgentMut.isPending ? 'Menyimpan…' : 'Simpan'}</Button>
+              </CardContent>
+            </Card>
+
+            <Card sx={{ mb: 1.5 }}>
+              <CardContent>
+                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>AI Closing → Google Sheets</Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
+                  AI otomatis mengekstrak data closing dari chat customer dan menambahkannya ke Google Sheet.
+                </Typography>
+
+                <Stack direction="row" spacing={1.5} sx={{ alignItems: 'center', mb: 1.5 }}>
+                  <Switch checked={sheetSync} onChange={e => setSheetSync(e.target.checked)} />
+                  <Typography variant="body2" color={sheetSync ? 'success.main' : 'text.secondary'}>
+                    {sheetSync ? 'Aktif' : 'Nonaktif'}
+                  </Typography>
+                </Stack>
+
+                <Grid container spacing={1.5}>
+                  <Grid size={{ xs: 12, sm: 8 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>URL Google Sheet</Typography>
+                    <TextField fullWidth size="small" value={sheetUrl}
+                      onChange={e => setSheetUrl(e.target.value)}
+                      placeholder="https://docs.google.com/spreadsheets/d/xxx/edit" />
+                  </Grid>
+                  <Grid size={{ xs: 12, sm: 4 }}>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Nama Tab</Typography>
+                    <TextField fullWidth size="small" value={sheetName}
+                      onChange={e => setSheetName(e.target.value)}
+                      placeholder="Leads" />
+                  </Grid>
+                </Grid>
+
+                <Stack direction="row" spacing={1} sx={{ mt: 1.5, alignItems: 'center' }}>
+                  <Button size="small" variant="outlined" onClick={async () => {
+                    if (!sheetUrl) { swalToast('Isi URL Google Sheet dulu', 'warning'); return; }
+                    try {
+                      const res = await api.post(`/agents/${agentId}/settings/test-sheet`);
+                      swalToast(res.data.message, res.data.status === 'ok' ? 'success' : 'error');
+                    } catch { swalToast('Gagal tes koneksi', 'error'); }
+                  }}>Test Koneksi</Button>
+                  <Typography variant="caption" color="text.secondary">
+                    Share sheet ke service account email dari .env
+                  </Typography>
+                </Stack>
               </CardContent>
             </Card>
 

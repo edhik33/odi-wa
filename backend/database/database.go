@@ -61,6 +61,7 @@ func Init() {
 		&models.Template{},
 		&models.FollowUp{}, &models.FollowUpStep{}, &models.FollowUpEnrollment{},
 		&models.AppSetting{},
+		&models.ClosingForm{}, &models.ClosingRecord{},
 	)
 
 	seedPlans()

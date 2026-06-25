@@ -40,6 +40,9 @@ func main() {
 	go handlers.ResumeBroadcasts()
 	handlers.CleanupStuckSchedules()
 
+	// Init Google Sheets client untuk export closing.
+	services.InitSheets()
+
 	// Scheduler pesan terjadwal + pembersihan media lama.
 	handlers.StartSchedulerCtx(appCtx)
 	handlers.StartMediaCleanup(config.EnvInt("MEDIA_RETENTION_DAYS", 30))
@@ -119,6 +122,7 @@ func main() {
 			auth.GET("/agents/:id/chat-history", handlers.ChatHistory)
 			auth.GET("/agents/:id/settings", handlers.GetSettings)
 			auth.PUT("/agents/:id/settings", handlers.UpdateSettings)
+			auth.POST("/agents/:id/settings/test-sheet", handlers.TestSheetConnection)
 			auth.GET("/agents/:id/knowledge", handlers.ListKnowledge)
 			auth.POST("/agents/:id/knowledge", handlers.CreateKnowledge)
 			auth.POST("/agents/:id/knowledge/generate", handlers.GenerateKnowledge)

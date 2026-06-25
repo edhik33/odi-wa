@@ -325,6 +325,9 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 
 	// Long-term memory: auto-summary setelah percakapan (jeda >30 menit).
 	go maybeSummarize(agent, num)
+
+	// Export data closing ke Google Sheets (async, non-blocking).
+	go maybeExtractAndExportClosing(agentID, num)
 }
 
 // sendChunked mengirim balasan AI dalam 1-3 bubble (per paragraf), masing-masing dengan

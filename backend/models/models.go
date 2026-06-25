@@ -24,6 +24,11 @@ type Agent struct {
 	ConversationSummary string     `gorm:"type:text" json:"conversation_summary"`
 	LastSummaryAt       *time.Time `json:"last_summary_at"`
 
+	// Integrasi Google Sheets untuk export data closing otomatis.
+	SpreadsheetURL       string `gorm:"type:text" json:"spreadsheet_url"`
+	SpreadsheetSheetName string `gorm:"size:80;default:'Leads'" json:"spreadsheet_sheet_name"`
+	SheetSyncEnabled     bool   `gorm:"not null;default:false" json:"sheet_sync_enabled"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -108,4 +113,29 @@ type LoginThrottle struct {
 	FirstSeen   time.Time `gorm:"index" json:"first_seen"`
 	LockedUntil time.Time `gorm:"index" json:"locked_until"`
 	UpdatedAt   time.Time `json:"updated_at"`
+}
+
+// ClosingForm = skema data closing yang dikumpulkan AI per agent.
+type ClosingForm struct {
+	ID        uint      `gorm:"primaryKey" json:"id"`
+	AgentID   uint      `gorm:"uniqueIndex;not null" json:"agent_id"`
+	SchemaJSON string   `gorm:"type:text" json:"schema_json"` // JSON definisi field
+	Enabled   bool      `gorm:"not null;default:true" json:"enabled"`
+	CreatedAt time.Time `json:"created_at"`
+	UpdatedAt time.Time `json:"updated_at"`
+}
+
+// ClosingRecord = satu data closing yang berhasil diekstrak AI.
+type ClosingRecord struct {
+	ID             uint       `gorm:"primaryKey" json:"id"`
+	AgentID        uint       `gorm:"index;not null" json:"agent_id"`
+	Sender         string     `gorm:"index;size:32" json:"sender"`
+	Status         string     `gorm:"size:20;default:'detected'" json:"status"` // detected, exported, failed, duplicate
+	Confidence     float64    `json:"confidence"`
+	DataJSON       string     `gorm:"type:text" json:"data_json"`
+	RawSummary     string     `gorm:"type:text" json:"raw_summary"`
+	SheetError     string     `json:"sheet_error"`
+	IdempotencyKey string     `gorm:"size:128;uniqueIndex" json:"idempotency_key"`
+	ExportedAt     *time.Time `json:"exported_at"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
