@@ -547,24 +547,32 @@ export default function Dashboard() {
 
         {tab === 'knowledge' && (
           <Box>
-            <PageHeader title={<>Knowledge Base {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}
-              action={
-                <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
-                  Setup Cepat
+            <PageHeader title={<>Knowledge Base {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>} />
+
+            <Card sx={{ mb: 1.5, borderLeft: '4px solid', borderColor: 'success.main', bgcolor: 'rgba(37,211,102,0.05)' }}>
+              <CardContent sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 1 }}>
+                <Box>
+                  <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                    <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
+                    Setup Cepat — Direkomendasikan
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Isi profil bisnis kamu, AI akan otomatis generate System Prompt + 15 FAQ. Cocok untuk pemula.
+                  </Typography>
+                </Box>
+                <Button variant="contained" color="success" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
+                  Mulai Setup Cepat
                 </Button>
-              }
-            />
+              </CardContent>
+            </Card>
 
             <Grid container spacing={1.5} sx={{ mb: 1.5 }}>
               <Grid size={{ xs: 12, md: 6 }}>
-                <Card sx={{ height: '100%', borderColor: 'primary.main' }}>
+                <Card>
                   <CardContent>
-                    <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                      <AutoAwesomeIcon sx={{ mr: 0.5, verticalAlign: 'middle', color: '#25D366', fontSize: 18 }} />
-                      Generate FAQ dengan AI
-                    </Typography>
+                    <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Atau tulis sendiri</Typography>
                     <Typography variant="caption" color="text.secondary" sx={{ mb: 0.75, display: 'block' }}>
-                      Tulis info tentang produk/layanan kamu. AI akan generate FAQ otomatis.
+                      Punya deskripsi produk sendiri? Paste di sini, AI ubah jadi FAQ.
                     </Typography>
 
                     <FormControl size="small" fullWidth sx={{ mb: 1 }}>
@@ -577,9 +585,9 @@ export default function Dashboard() {
                       </Select>
                     </FormControl>
 
-                    <TextField multiline rows={5} fullWidth size="small" value={genText}
+                    <TextField multiline rows={4} fullWidth size="small" value={genText}
                       onChange={e => setGenText(e.target.value)}
-                      placeholder="Tulis atau paste teks tentang produk/layanan kamu. AI akan mengubahnya jadi tanya-jawab otomatis..."
+                      placeholder="Tulis info tentang produk/layanan kamu..."
                       sx={{ mb: 1 }} />
 
                     <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
