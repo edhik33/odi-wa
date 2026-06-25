@@ -185,6 +185,10 @@ func SetupWizard(c *gin.Context) {
 	if err == nil && len(resp1.Choices) > 0 {
 		systemPrompt = strings.TrimSpace(resp1.Choices[0].Message.Content)
 	}
+	// Fallback: kalau AI gagal, build dari form langsung
+	if systemPrompt == "" {
+		systemPrompt = fmt.Sprintf("Kamu adalah %s, CS %s. Kami menjual %s. Harga %s. Cara order: %s. Pengiriman: %s. Jam operasional: %s. Ramah, panggil \"kak\". Saat customer mau beli, tanya nama, produk, alamat, dan metode bayar.", req.CSName, req.BizName, req.Products, req.PriceRange, req.OrderFlow, req.Shipping, req.Hours)
+	}
 	if systemPrompt != "" {
 		database.DB.Model(&models.Agent{}).Where("id = ?", aid).
 			Update("system_prompt", systemPrompt)
