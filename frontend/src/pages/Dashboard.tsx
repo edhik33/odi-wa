@@ -750,12 +750,8 @@ export default function Dashboard() {
                   </Grid>
                 </Grid>
 
-                <Button variant="contained" onClick={saveAgent} disabled={saveAgentMut.isPending} sx={{ mt: 1.5 }}>{saved ? 'Tersimpan ✓' : saveAgentMut.isPending ? 'Menyimpan…' : 'Simpan'}</Button>
-              </CardContent>
-            </Card>
+                <Divider sx={{ mt: 1.5, mb: 1.5 }} />
 
-            <Card sx={{ mb: 1.5 }}>
-              <CardContent>
                 <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>AI Closing → Google Sheets</Typography>
                 <Typography variant="caption" color="text.secondary" sx={{ mb: 1.5, display: 'block' }}>
                   AI otomatis mengekstrak data closing dari chat customer dan menambahkannya ke Google Sheet.
@@ -812,9 +808,11 @@ export default function Dashboard() {
                     } catch { swalToast('Gagal tes koneksi', 'error'); }
                   }}>Test Koneksi</Button>
                   <Typography variant="caption" color="text.secondary">
-                    Share sheet ke service account email dari .env
+                    Share spreadsheet ke: chatloop-sheets@whatsmeow.iam.gserviceaccount.com
                   </Typography>
                 </Stack>
+
+                <Button variant="contained" onClick={saveAgent} disabled={saveAgentMut.isPending} sx={{ mt: 2 }}>{saved ? 'Tersimpan ✓' : saveAgentMut.isPending ? 'Menyimpan…' : 'Simpan'}</Button>
               </CardContent>
             </Card>
 
