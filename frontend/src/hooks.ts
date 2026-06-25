@@ -427,6 +427,18 @@ export function useCreateBroadcast(agentId: number) {
   });
 }
 
+export function useCancelBroadcast(agentId: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (bid: number) =>
+      (await api.post(`/agents/${agentId}/broadcasts/${bid}/cancel`)).data,
+    onSuccess: (_data, bid) => {
+      qc.invalidateQueries({ queryKey: ['broadcasts', agentId] });
+      qc.invalidateQueries({ queryKey: ['broadcast', agentId, bid] });
+    },
+  });
+}
+
 // ---- Agent list & detail (Dashboard) ----
 
 export function useAgents() {

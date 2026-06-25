@@ -168,11 +168,101 @@ func CreateBroadcast(c *gin.Context) {
 	c.JSON(200, gin.H{"data": b})
 }
 
+// CancelBroadcast membatalkan broadcast yang belum selesai.
+// Dua tahap: running -> cancel_requested -> (worker cek) -> cancelled.
+// Pending/interrupted langsung finalize karena tidak ada worker aktif.
+func CancelBroadcast(c *gin.Context) {
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	bid, err := strconv.Atoi(c.Param("bid"))
+	if err != nil || bid <= 0 {
+		c.JSON(400, gin.H{"error": "ID broadcast tidak valid"})
+		return
+	}
+	var b models.Broadcast
+	if database.DB.Where("id = ? AND agent_id = ?", bid, id).First(&b).Error != nil {
+		c.JSON(404, gin.H{"error": "Broadcast tidak ditemukan"})
+		return
+	}
+	switch b.Status {
+	case "done", "failed", models.BroadcastCancelled:
+		c.JSON(400, gin.H{"error": "Broadcast sudah selesai dan tidak bisa dibatalkan"})
+		return
+	}
+	// Kalau tidak ada worker aktif, finalize langsung.
+	if b.Status == models.BroadcastPending || b.Status == models.BroadcastInterrupted {
+		finalizeCancelledBroadcast(b.ID)
+		c.JSON(200, gin.H{"message": "Broadcast dibatalkan", "status": models.BroadcastCancelled})
+		return
+	}
+	// Kalau running, minta worker berhenti di checkpoint.
+	res := database.DB.Model(&models.Broadcast{}).
+		Where("id = ? AND agent_id = ? AND status = ?", b.ID, id, models.BroadcastRunning).
+		Update("status", models.BroadcastCancelRequested)
+	if res.Error != nil {
+		c.JSON(500, gin.H{"error": "Gagal membatalkan broadcast"})
+		return
+	}
+	if res.RowsAffected == 0 {
+		c.JSON(409, gin.H{"error": "Broadcast sudah berubah status. Silakan refresh."})
+		return
+	}
+	c.JSON(200, gin.H{
+		"message": "Permintaan cancel diterima. Broadcast akan berhenti setelah proses saat ini selesai.",
+		"status":  models.BroadcastCancelRequested,
+	})
+}
+
+// isBroadcastCancelRequested cek apakah broadcast sudah diminta cancel.
+func isBroadcastCancelRequested(broadcastID uint) bool {
+	var status string
+	if err := database.DB.Model(&models.Broadcast{}).
+		Where("id = ?", broadcastID).Select("status").Scan(&status).Error; err != nil {
+		log.Printf("Gagal cek status cancel broadcast %d: %v", broadcastID, err)
+		return false
+	}
+	return status == models.BroadcastCancelRequested || status == models.BroadcastCancelled
+}
+
+// finalizeCancelledBroadcast menandai recipient pending sebagai skipped,
+// lalu set status broadcast final jadi cancelled.
+func finalizeCancelledBroadcast(broadcastID uint) {
+	database.DB.Model(&models.BroadcastRecipient{}).
+		Where("broadcast_id = ? AND status = ?", broadcastID, "pending").
+		Updates(map[string]any{"status": "skipped", "error": "broadcast dibatalkan user"})
+	var sent, failed, skipped int64
+	database.DB.Model(&models.BroadcastRecipient{}).Where("broadcast_id = ? AND status = ?", broadcastID, "sent").Count(&sent)
+	database.DB.Model(&models.BroadcastRecipient{}).Where("broadcast_id = ? AND status = ?", broadcastID, "failed").Count(&failed)
+	database.DB.Model(&models.BroadcastRecipient{}).Where("broadcast_id = ? AND status = ?", broadcastID, "skipped").Count(&skipped)
+	finishBroadcast(broadcastID, models.BroadcastCancelled, int(sent), int(failed), int(skipped))
+}
+
+// sleepBroadcastDelay tidur 1 detik per iterasi sambil cek cancel.
+// Return false jika broadcast sudah diminta cancel.
+func sleepBroadcastDelay(broadcastID uint, d int) bool {
+	for i := 0; i < d; i++ {
+		if isBroadcastCancelRequested(broadcastID) {
+			return false
+		}
+		time.Sleep(1 * time.Second)
+	}
+	return true
+}
+
 // ResumeBroadcasts melanjutkan broadcast yang masih punya penerima "pending"
 // (mis. server sempat restart di tengah pengiriman). Dipanggil sekali saat startup.
 func ResumeBroadcasts() {
+	// Bereskan cancel_requested yang nyangkut (server mati setelah user klik cancel).
+	var cancelReq []models.Broadcast
+	database.DB.Where("status = ?", models.BroadcastCancelRequested).Find(&cancelReq)
+	for _, b := range cancelReq {
+		finalizeCancelledBroadcast(b.ID)
+	}
+
 	var bs []models.Broadcast
-	database.DB.Where("status IN ?", []string{"running", "interrupted", "pending"}).Find(&bs)
+	database.DB.Where("status IN ?", []string{models.BroadcastRunning, models.BroadcastInterrupted, models.BroadcastPending}).Find(&bs)
 	for _, b := range bs {
 		var pending int64
 		database.DB.Model(&models.BroadcastRecipient{}).Where("broadcast_id = ? AND status = ?", b.ID, "pending").Count(&pending)
@@ -221,6 +311,12 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 	daily := int(dailySentCount(agentID))
 
 	for i, r := range recipients {
+		// Cek cancel_requested di awal setiap iterasi.
+		if isBroadcastCancelRequested(broadcastID) {
+			finalizeCancelledBroadcast(broadcastID)
+			log.Printf("Broadcast %d dibatalkan user sebelum kirim recipient berikutnya", broadcastID)
+			return
+		}
 		// Pastikan WA tersambung; tunggu reconnect otomatis hingga ~60 detik. Kalau tetap putus,
 		// JEDA broadcast (status interrupted) — sisa penerima tetap "pending" agar bisa dilanjutkan,
 		// bukan ditandai gagal massal yang menyesatkan.
@@ -249,6 +345,12 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 		}
 
 		msg := personalize(b.Message, r.Name)
+		// Cek cancel_requested sebelum kirim.
+		if isBroadcastCancelRequested(broadcastID) {
+			finalizeCancelledBroadcast(broadcastID)
+			log.Printf("Broadcast %d dibatalkan user sebelum pengiriman ke %s", broadcastID, r.Number)
+			return
+		}
 		var sendErr error
 		switch {
 		case b.MediaType == "image" && len(mediaBytes) > 0:
@@ -277,13 +379,17 @@ func runBroadcast(broadcastID, agentID uint, minD, maxD int) {
 		}
 		updateBroadcastCounters(broadcastID, sent, failed, skipped)
 
-		// Jeda acak antar pesan (kecuali penerima terakhir).
+		// Jeda acak antar pesan (kecuali penerima terakhir), sambil cek cancel.
 		if i < len(recipients)-1 {
 			d := minD
 			if maxD > minD {
 				d = minD + rand.Intn(maxD-minD+1)
 			}
-			time.Sleep(time.Duration(d) * time.Second)
+			if !sleepBroadcastDelay(broadcastID, d) {
+				finalizeCancelledBroadcast(broadcastID)
+				log.Printf("Broadcast %d dibatalkan user saat jeda antar pesan", broadcastID)
+				return
+			}
 		}
 	}
 

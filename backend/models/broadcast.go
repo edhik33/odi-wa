@@ -2,13 +2,24 @@ package models
 
 import "time"
 
+// Status broadcast
+const (
+	BroadcastPending         = "pending"
+	BroadcastRunning         = "running"
+	BroadcastDone            = "done"
+	BroadcastInterrupted     = "interrupted"
+	BroadcastFailed          = "failed"
+	BroadcastCancelRequested = "cancel_requested"
+	BroadcastCancelled       = "cancelled"
+)
+
 // Broadcast = satu kampanye pesan massal milik sebuah agent.
 type Broadcast struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	TenantID  uint      `gorm:"index;not null" json:"tenant_id"`
 	AgentID   uint      `gorm:"index;not null" json:"agent_id"`
 	Message   string    `gorm:"type:text" json:"message"`
-	Status    string    `gorm:"size:16;default:pending;index" json:"status"` // pending, running, done, interrupted
+	Status    string    `gorm:"size:16;default:pending;index" json:"status"` // pending, running, done, interrupted, failed, cancel_requested, cancelled
 	// Lampiran opsional yang dikirim ke semua penerima (pesan jadi caption).
 	MediaType string `gorm:"size:16" json:"media_type"`
 	MediaPath string `json:"-"`

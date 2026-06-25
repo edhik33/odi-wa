@@ -8,7 +8,7 @@ import SendIcon from '@mui/icons-material/Send';
 import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
-import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail } from '../hooks';
+import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail, useCancelBroadcast } from '../hooks';
 import RecipientField from './RecipientField';
 import WhatsAppEditor from './WhatsAppEditor';
 import TemplatePicker from './TemplatePicker';
@@ -25,6 +25,7 @@ function normalizePhone(s: string): string {
 
 const STATUS_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   done: 'success', running: 'warning', pending: 'default', failed: 'error', interrupted: 'error',
+  cancel_requested: 'warning', cancelled: 'default',
 };
 const RCP_COLOR: Record<string, 'success' | 'warning' | 'error' | 'default'> = {
   sent: 'success', failed: 'error', skipped: 'default', pending: 'warning',
@@ -53,6 +54,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
 
   const checkNumbers = useCheckNumbers(agentId);
   const createBroadcast = useCreateBroadcast(agentId);
+  const cancelBroadcast = useCancelBroadcast(agentId);
   const { data: bpage } = useBroadcasts(agentId, page);
   const { data: detail } = useBroadcastDetail(agentId, detailId);
   const broadcasts = bpage?.data || [];
@@ -223,12 +225,14 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                   <TableCell>Pesan</TableCell>
                   <TableCell align="center">Status</TableCell>
                   <TableCell sx={{ width: 210 }}>Progres</TableCell>
+                  <TableCell align="right">Aksi</TableCell>
                 </TableRow>
               </TableHead>
               <TableBody>
                 {broadcasts.map(b => {
                   const done = b.sent + b.failed + b.skipped;
                   const pct = b.total ? Math.round((done / b.total) * 100) : 0;
+                  const canCancel = ['pending', 'running', 'interrupted', 'cancel_requested'].includes(b.status);
                   return (
                     <TableRow key={b.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetailId(b.id)}>
                       <TableCell>{new Date(b.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</TableCell>
@@ -239,6 +243,19 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                         <Typography variant="caption" color="text.secondary">
                           {b.sent} terkirim · {b.failed} gagal · {b.skipped} dilewati / {b.total}
                         </Typography>
+                      </TableCell>
+                      <TableCell align="right" onClick={e => e.stopPropagation()}>
+                        {canCancel && (
+                          <Button size="small" color="error" variant="outlined"
+                            disabled={cancelBroadcast.isPending}
+                            onClick={() => {
+                              if (confirm('Batalkan broadcast ini? Pesan yang sudah terkirim tidak bisa ditarik.')) {
+                                cancelBroadcast.mutate(b.id);
+                              }
+                            }}>
+                            Cancel
+                          </Button>
+                        )}
                       </TableCell>
                     </TableRow>
                   );

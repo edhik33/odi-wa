@@ -157,6 +157,7 @@ func main() {
 			auth.POST("/agents/:id/broadcast", handlers.CreateBroadcast)
 			auth.GET("/agents/:id/broadcasts", handlers.ListBroadcasts)
 			auth.GET("/agents/:id/broadcasts/:bid", handlers.BroadcastDetail)
+			auth.POST("/agents/:id/broadcasts/:bid/cancel", handlers.CancelBroadcast)
 			auth.GET("/agents/:id/chat-contacts", handlers.ChatContacts)
 			auth.GET("/agents/:id/wa-contacts", handlers.WAContacts)
 			auth.GET("/agents/:id/groups", handlers.Groups)
