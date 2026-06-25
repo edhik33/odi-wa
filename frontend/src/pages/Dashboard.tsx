@@ -470,11 +470,13 @@ export default function Dashboard() {
       <Box component="main" sx={{ flex: 1, p: { xs: 1.25, md: 2 }, overflowY: 'auto', height: { md: '100vh' }, minHeight: 0, width: '100%', minWidth: 0 }}>
         {tab === 'dashboard' && (
           <Box>
-            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}>
-              <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
-                Setup Cepat
-              </Button>
-            </PageHeader>
+            <PageHeader title={<>Dashboard {currentAgent && <Typography component="span" color="text.secondary" sx={{ fontWeight: 400 }}>· {currentAgent.name}</Typography>}</>}
+              action={
+                <Button variant="outlined" size="small" startIcon={<AutoAwesomeIcon />} onClick={() => setWizardOpen(true)} disabled={!agentId}>
+                  Setup Cepat
+                </Button>
+              }
+            />
 
             <Card sx={{ mb: 1.5, borderLeft: '4px solid', borderColor: aiEnabled ? 'success.main' : 'grey.400', bgcolor: aiEnabled ? 'rgba(37,211,102,0.07)' : 'action.hover' }}>
               <CardContent sx={{ py: 1.5, '&:last-child': { pb: 1.5 } }}>
