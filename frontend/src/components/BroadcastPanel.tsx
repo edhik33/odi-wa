@@ -272,6 +272,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                             disabled={cancelBroadcast.isPending}
                             onClick={async () => {
                               if (await swalConfirm('Batalkan broadcast ini?', 'Pesan yang sudah terkirim tidak bisa ditarik.')) {
+                                if (b.id === lastStartedId) setLastStartedId(null);
                                 cancelBroadcast.mutate(b.id);
                               }
                             }}>
