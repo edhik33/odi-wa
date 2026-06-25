@@ -9,7 +9,7 @@ import AttachFileIcon from '@mui/icons-material/AttachFile';
 import CloseIcon from '@mui/icons-material/Close';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import { useCheckNumbers, useCreateBroadcast, useBroadcasts, useBroadcastDetail, useCancelBroadcast } from '../hooks';
-import { swalToast } from '../services/swal';
+import { swalToast, swalConfirm } from '../services/swal';
 import RecipientField from './RecipientField';
 import WhatsAppEditor from './WhatsAppEditor';
 import TemplatePicker from './TemplatePicker';
@@ -270,8 +270,8 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                         {canCancel && (
                           <Button size="small" color="error" variant="outlined"
                             disabled={cancelBroadcast.isPending}
-                            onClick={() => {
-                              if (confirm('Batalkan broadcast ini? Pesan yang sudah terkirim tidak bisa ditarik.')) {
+                            onClick={async () => {
+                              if (await swalConfirm('Batalkan broadcast ini?', 'Pesan yang sudah terkirim tidak bisa ditarik.')) {
                                 cancelBroadcast.mutate(b.id);
                               }
                             }}>
