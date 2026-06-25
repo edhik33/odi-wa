@@ -305,7 +305,13 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		history[i], history[j] = history[j], history[i]
 	}
 
-	reply, escalate, _, err := services.ChatWithKnowledge(agentID, prompt, tone, in.Text, history)
+	// Inject konteks ongkir realtime kalau user tanya ongkir.
+	enhancedPrompt := prompt
+	if shippingCtx := maybeBuildShippingContext(agent, in.Text); shippingCtx != "" {
+		enhancedPrompt = prompt + "\n\n" + shippingCtx
+	}
+
+	reply, escalate, _, err := services.ChatWithKnowledge(agentID, enhancedPrompt, tone, in.Text, history)
 	if err != nil {
 		log.Printf("AI error (agent %d) dari %s: %v", agentID, num, err)
 		reply = "Maaf, ada kendala teknis."
@@ -437,6 +443,88 @@ func logTurn(agentID uint, num, msg, reply string, fromHuman bool, replyTo strin
 	}).Error; err != nil {
 		log.Printf("Gagal logTurn (agent %d, %s): %v", agentID, num, err)
 	}
+}
+
+// --- Cek Ongkir Realtime via RajaOngkir ---
+
+var shippingKeywords = []string{"ongkir", "ongkos kirim", "biaya kirim", "kirim ke", "pengiriman ke", "berapa kirim", "cek ongkir", "ongkos"}
+
+func detectShippingIntent(msg string) bool {
+	lower := strings.ToLower(msg)
+	for _, kw := range shippingKeywords {
+		if strings.Contains(lower, kw) {
+			return true
+		}
+	}
+	return false
+}
+
+func extractDestinationCity(msg string) string {
+	msg = strings.ToLower(msg)
+	// Cari pola: "ke kota", "tujuan kota", "ongkir ke kota", "kirim ke kota"
+	patterns := []string{"ke ", "tujuan ", "ongkir ", "kirim "}
+	for _, p := range patterns {
+		if idx := strings.Index(msg, p); idx >= 0 {
+			rest := msg[idx+len(p):]
+			// Ambil kata pertama setelah "ke "/"tujuan " dll
+			word := strings.Fields(rest)
+			if len(word) > 0 {
+				candidate := word[0]
+				if len(word) > 1 && word[1] != "" {
+					candidate = word[0] + " " + word[1] // "kota bandung" atau "bandung barat"
+				}
+				return strings.TrimSpace(candidate)
+			}
+		}
+	}
+	return ""
+}
+
+func maybeBuildShippingContext(agent models.Agent, msg string) string {
+	if agent.OriginCityID == 0 || !detectShippingIntent(msg) {
+		return ""
+	}
+	destText := extractDestinationCity(msg)
+	if destText == "" {
+		return ""
+	}
+
+	cities := services.ResolveCity(destText)
+	if len(cities) == 0 {
+		return "" // kota gak ketemu, AI akan tanya manual
+	}
+	if len(cities) > 1 {
+		// Ambiguous — kasih pilihan ke AI
+		var sb strings.Builder
+		sb.WriteString("\n\nONGKIR_AMBIGUOUS:\nBeberapa kota ditemukan:\n")
+		for i, c := range cities {
+			sb.WriteString(fmt.Sprintf("%d. %s (%s)\n", i+1, c.FullName, c.Province))
+		}
+		sb.WriteString("Tanyakan customer pilih yang mana (balas dengan nomor).\n")
+		return sb.String()
+	}
+
+	city := cities[0]
+	couriers := strings.Split(agent.EnabledCouriers, ",")
+	if len(couriers) == 0 || couriers[0] == "" {
+		couriers = []string{"jne", "jnt", "sicepat"}
+	}
+
+	results, err := services.CheckShippingCost(agent.OriginCityID, city.RajaOngkirID, agent.DefaultWeightGram, couriers)
+	if err != nil {
+		return "" // biar AI jawab fallback
+	}
+
+	var sb strings.Builder
+	sb.WriteString("\n\nONGKIR_REALTIME:\n")
+	sb.WriteString(fmt.Sprintf("Kota asal: %s\n", agent.OriginCityName))
+	sb.WriteString(fmt.Sprintf("Tujuan: %s\n", city.FullName))
+	sb.WriteString(fmt.Sprintf("Berat: %dg\n", agent.DefaultWeightGram))
+	for _, r := range results {
+		sb.WriteString(fmt.Sprintf("%s %s: Rp%d (%s hari)\n", r.Courier, r.Service, r.Cost, r.Estimate))
+	}
+	sb.WriteString("\nAturan: jawab hanya berdasarkan data ini. Jangan mengarang ekspedisi atau harga lain. Bilang 'estimasi' dan bisa berubah.")
+	return sb.String()
 }
 
 // ListHandoffs: daftar kontak yang sedang butuh ditangani manusia (bot pause).

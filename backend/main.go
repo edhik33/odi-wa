@@ -43,6 +43,9 @@ func main() {
 	// Init Google Sheets client untuk export closing.
 	services.InitSheets()
 
+	// Seed daftar kota RajaOngkir ke DB lokal (async, non-blocking).
+	go services.SeedShippingCities()
+
 	// Scheduler pesan terjadwal + pembersihan media lama.
 	handlers.StartSchedulerCtx(appCtx)
 	handlers.StartMediaCleanup(config.EnvInt("MEDIA_RETENTION_DAYS", 30))

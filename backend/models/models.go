@@ -29,6 +29,12 @@ type Agent struct {
 	SpreadsheetSheetName string `gorm:"size:80;default:'Leads'" json:"spreadsheet_sheet_name"`
 	SheetSyncEnabled     bool   `gorm:"not null;default:false" json:"sheet_sync_enabled"`
 
+	// Cek ongkir realtime via RajaOngkir.
+	OriginCityID       int    `gorm:"default:0" json:"origin_city_id"`
+	OriginCityName     string `gorm:"size:100" json:"origin_city_name"`
+	DefaultWeightGram  int    `gorm:"default:1000" json:"default_weight_gram"`
+	EnabledCouriers    string `gorm:"size:100;default:'jne,jnt,sicepat'" json:"enabled_couriers"`
+
 	CreatedAt time.Time `json:"created_at"`
 }
 
@@ -138,4 +144,15 @@ type ClosingRecord struct {
 	IdempotencyKey string     `gorm:"size:128;uniqueIndex" json:"idempotency_key"`
 	ExportedAt     *time.Time `json:"exported_at"`
 	CreatedAt      time.Time  `json:"created_at"`
+}
+
+// ShippingCity = daftar kota/kabupaten dari RajaOngkir (cache lokal).
+type ShippingCity struct {
+	ID              uint   `gorm:"primaryKey" json:"id"`
+	RajaOngkirID    int    `gorm:"uniqueIndex" json:"rajaongkir_id"`
+	Province        string `gorm:"size:100" json:"province"`
+	Type            string `gorm:"size:20" json:"type"` // Kota / Kabupaten
+	CityName        string `gorm:"size:100" json:"city_name"`
+	FullName        string `gorm:"size:200" json:"full_name"` // "Kota Bandung"
+	SearchText      string `gorm:"type:text" json:"-"`        // lowercase untuk search
 }
