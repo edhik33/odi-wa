@@ -74,7 +74,7 @@ func maybeExtractAndExportClosing(agentID uint, sender string) {
 
 	var result ClosingResult
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
-		log.Printf("[closing] Agent %d: gagal parse extractor JSON: %v — raw: %s", agentID, err, truncateStr(content, 300))
+		log.Printf("[closing] Agent %d: gagal parse extractor JSON: %v — content len=%d: %q", agentID, err, len(content), content)
 		return
 	}
 	if result.Confidence < 0.7 {
