@@ -583,6 +583,9 @@ func UpdateAgent(c *gin.Context) {
 		BusinessStart        *string `json:"business_start"`
 		BusinessEnd          *string `json:"business_end"`
 		AwayMessage          *string `json:"away_message"`
+		SpreadsheetURL       *string `json:"spreadsheet_url"`
+		SpreadsheetSheetName *string `json:"spreadsheet_sheet_name"`
+		SheetSyncEnabled     *bool   `json:"sheet_sync_enabled"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(400, gin.H{"error": "Format data tidak valid"})
@@ -617,6 +620,15 @@ func UpdateAgent(c *gin.Context) {
 	}
 	if req.AwayMessage != nil {
 		a.AwayMessage = *req.AwayMessage
+	}
+	if req.SpreadsheetURL != nil {
+		a.SpreadsheetURL = *req.SpreadsheetURL
+	}
+	if req.SpreadsheetSheetName != nil {
+		a.SpreadsheetSheetName = *req.SpreadsheetSheetName
+	}
+	if req.SheetSyncEnabled != nil {
+		a.SheetSyncEnabled = *req.SheetSyncEnabled
 	}
 	if err := database.DB.Save(&a).Error; err != nil {
 		log.Printf("Gagal menyimpan agent %d: %v", a.ID, err)
