@@ -60,7 +60,7 @@ func maybeExtractAndExportClosing(agentID uint, sender string) {
 			{Role: openai.ChatMessageRoleSystem, Content: `Kamu adalah data extractor. Tugasmu membaca riwayat percakapan dan mengekstrak data sesuai schema. Output HANYA JSON. Kalau data belum lengkap, tetap berikan JSON dengan field yang ada. Jangan menambah field di luar schema.`},
 			{Role: openai.ChatMessageRoleUser, Content: prompt},
 		},
-		MaxTokens: 500,
+		MaxTokens: 1000,
 	})
 	if err != nil {
 		log.Printf("[closing] Agent %d: AI extractor error: %v", agentID, err)
@@ -74,7 +74,7 @@ func maybeExtractAndExportClosing(agentID uint, sender string) {
 
 	var result ClosingResult
 	if err := json.Unmarshal([]byte(content), &result); err != nil {
-		log.Printf("[closing] Agent %d: gagal parse extractor JSON: %v", agentID, err)
+		log.Printf("[closing] Agent %d: gagal parse extractor JSON: %v — raw: %s", agentID, err, truncateStr(content, 300))
 		return
 	}
 	if result.Confidence < 0.7 {
@@ -270,4 +270,11 @@ func ListSheetNames(c *gin.Context) {
 		return
 	}
 	c.JSON(200, gin.H{"data": names})
+}
+
+func truncateStr(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
