@@ -79,3 +79,21 @@ func TestConnection(spreadsheetID, sheetName string) error {
 	_, err := sheetsClient.Spreadsheets.Values.Get(spreadsheetID, range_).Context(context.Background()).Do()
 	return err
 }
+
+// GetSheetNames mengembalikan daftar nama tab/sheet dalam spreadsheet.
+func GetSheetNames(spreadsheetID string) ([]string, error) {
+	if sheetsClient == nil {
+		return nil, fmt.Errorf("sheets client belum diinisialisasi")
+	}
+	ss, err := sheetsClient.Spreadsheets.Get(spreadsheetID).Context(context.Background()).Do()
+	if err != nil {
+		return nil, err
+	}
+	names := make([]string, 0, len(ss.Sheets))
+	for _, s := range ss.Sheets {
+		if s.Properties != nil && s.Properties.Title != "" {
+			names = append(names, s.Properties.Title)
+		}
+	}
+	return names, nil
+}

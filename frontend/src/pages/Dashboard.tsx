@@ -123,6 +123,8 @@ export default function Dashboard() {
   const [sheetName, setSheetName] = useState('Leads');
   const [sheetSync, setSheetSync] = useState(false);
   const [closingSchema, setClosingSchema] = useState('');
+  const [sheetNames, setSheetNames] = useState<string[]>([]);
+  const [loadingNames, setLoadingNames] = useState(false);
   const user = JSON.parse(localStorage.getItem('user') || '{}') as { name?: string; username?: string; email?: string; role?: string; phone?: string };
   const [profileAnchor, setProfileAnchor] = useState<HTMLElement | null>(null);
   const [profileName, setProfileName] = useState(user.name || '');
@@ -775,9 +777,29 @@ export default function Dashboard() {
                   </Grid>
                   <Grid size={{ xs: 12, sm: 4 }}>
                     <Typography variant="subtitle2" sx={{ mb: 0.5 }}>Nama Tab</Typography>
-                    <TextField fullWidth size="small" value={sheetName}
-                      onChange={e => setSheetName(e.target.value)}
-                      placeholder="Leads" />
+                    <Stack direction="row" spacing={0.5}>
+                      <FormControl fullWidth size="small">
+                        <Select value={sheetNames.includes(sheetName) ? sheetName : ''}
+                          onChange={e => setSheetName(e.target.value)}
+                          displayEmpty
+                          renderValue={v => v || sheetName || 'Pilih atau ketik...'}>
+                          <MenuItem value=""><em>Ketik manual</em></MenuItem>
+                          {sheetNames.map(n => <MenuItem key={n} value={n}>{n}</MenuItem>)}
+                        </Select>
+                      </FormControl>
+                      <Button size="small" variant="outlined" onClick={async () => {
+                        if (!sheetUrl) { swalToast('Isi URL dulu', 'warning'); return; }
+                        setLoadingNames(true);
+                        try {
+                          const res = await api.get(`/agents/${agentId}/settings/sheet-names`);
+                          setSheetNames(res.data.data || []);
+                          if (res.data.data?.length === 1) setSheetName(res.data.data[0]);
+                        } catch { swalToast('Gagal membaca sheet', 'error'); }
+                        setLoadingNames(false);
+                      }} disabled={loadingNames}>
+                        {loadingNames ? '…' : 'Segarkan'}
+                      </Button>
+                    </Stack>
                   </Grid>
                 </Grid>
 

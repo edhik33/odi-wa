@@ -243,3 +243,31 @@ func TestSheetConnection(c *gin.Context) {
 	}
 	c.JSON(200, gin.H{"status": "ok", "message": "Koneksi berhasil!"})
 }
+
+// ListSheetNames mengembalikan daftar nama tab/sheet dari URL sheet agent.
+func ListSheetNames(c *gin.Context) {
+	id, ok := resolveAgent(c)
+	if !ok {
+		return
+	}
+	var agent models.Agent
+	if database.DB.First(&agent, id).Error != nil {
+		c.JSON(404, gin.H{"error": "Agent tidak ditemukan"})
+		return
+	}
+	if agent.SpreadsheetURL == "" {
+		c.JSON(400, gin.H{"error": "URL spreadsheet belum diisi"})
+		return
+	}
+	sheetID := services.ParseSpreadsheetID(agent.SpreadsheetURL)
+	if sheetID == "" {
+		c.JSON(400, gin.H{"error": "URL spreadsheet tidak valid"})
+		return
+	}
+	names, err := services.GetSheetNames(sheetID)
+	if err != nil {
+		c.JSON(502, gin.H{"error": "Gagal membaca sheet: " + err.Error()})
+		return
+	}
+	c.JSON(200, gin.H{"data": names})
+}
