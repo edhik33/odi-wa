@@ -208,6 +208,7 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 		log.Printf("WARN: jawaban kemungkinan terpotong (finish_reason=length) — pertimbangkan naikkan MaxTokens. Pesan: %q", userMsg)
 	}
 	reply := strings.TrimSpace(resp.Choices[0].Message.Content)
+	log.Printf("AI raw reply (agent=%d, model=%s, len=%d): %q", agentID, p.Short, len(reply), truncateForLog(reply, 200))
 	// Model menandai dirinya tidak bisa menjawab pertanyaan spesifik -> eskalasi ke manusia.
 	if strings.Contains(reply, "[[ESCALATE]]") {
 		return "", true, p.Short, nil
@@ -377,4 +378,11 @@ func SummarizeConversation(agentID uint, msgs []models.ChatHistory) (string, err
 		return "", nil
 	}
 	return strings.TrimSpace(resp.Choices[0].Message.Content), nil
+}
+
+func truncateForLog(s string, max int) string {
+	if len(s) <= max {
+		return s
+	}
+	return s[:max] + "..."
 }
