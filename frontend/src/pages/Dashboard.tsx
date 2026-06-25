@@ -110,7 +110,7 @@ export default function Dashboard() {
   const [newA, setNewA] = useState('');
   const [newTags, setNewTags] = useState('');
   const [genText, setGenText] = useState('');
-  const [genCount, setGenCount] = useState(5);
+  const [genCount, setGenCount] = useState(10);
   const [tpl, setTpl] = useState({ name: '', price: '', specs: '', warranty: '', order: '', shipping: '', payment: '', usp: '', notes: '' });
   const [showTpl, setShowTpl] = useState(false);
   const [bizType, setBizType] = useState('');
