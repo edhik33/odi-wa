@@ -111,8 +111,6 @@ export default function Dashboard() {
   const [newTags, setNewTags] = useState('');
   const [genText, setGenText] = useState('');
   const [genCount, setGenCount] = useState(10);
-  const [tpl, setTpl] = useState({ name: '', price: '', specs: '', warranty: '', order: '', shipping: '', payment: '', usp: '', notes: '' });
-  const [showTpl, setShowTpl] = useState(false);
   const [bizType, setBizType] = useState('produk_fisik');
   const [knowledgePage, setKnowledgePage] = useState(0);
   const [knowledgeErrors, setKnowledgeErrors] = useState<Record<string, string>>({});
@@ -122,7 +120,6 @@ export default function Dashboard() {
   const [sheetUrl, setSheetUrl] = useState('');
   const [sheetName, setSheetName] = useState('Leads');
   const [sheetSync, setSheetSync] = useState(false);
-  const [closingSchema, setClosingSchema] = useState('');
   const [sheetNames, setSheetNames] = useState<string[]>([]);
   const [loadingNames, setLoadingNames] = useState(false);
   // Setup Wizard
