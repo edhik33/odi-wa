@@ -1077,7 +1077,7 @@ export default function Dashboard() {
               setWizardLoading(true);
               try {
                 const res = await api.post(`/agents/${agentId}/setup-wizard`, wizardBiz);
-                swalToast(`Setup selesai! ${res.data.knowledge} FAQ + System Prompt dibuat.`, 'success');
+                swalToast(`✅ ${res.data.message} (${res.data.knowledge} FAQ dibuat)`, 'success');
                 setWizardOpen(false);
                 window.location.reload();
               } catch (e: any) { swalToast(e?.response?.data?.error || 'Gagal', 'error'); }

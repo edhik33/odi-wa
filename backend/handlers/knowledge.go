@@ -231,16 +231,32 @@ Nama: %s | Produk: %s | Harga: %s | Order: %s | Kirim: %s | Jam: %s`, req.BizNam
 		return
 	}
 
+	// Hapus knowledge lama (mode replace, bukan append).
+	database.DB.Where("agent_id = ?", aid).Delete(&models.Knowledge{})
+
 	var created int
 	for _, item := range items {
 		k := models.Knowledge{AgentID: aid, Question: item.Question, Answer: item.Answer, Tags: item.Tags}
 		database.DB.Create(&k)
-		services.IndexKnowledge(&k)
 		created++
 	}
 
+	// Batch invalidation: embed & invalidate cache setelah semua knowledge dibuat.
+	for _, item := range items {
+		var k models.Knowledge
+		if database.DB.Where("agent_id = ? AND question = ?", aid, item.Question).First(&k).Error == nil {
+			services.IndexKnowledge(&k)
+		}
+	}
+	// Invalidate setelah embed selesai (biar cache reload final).
+	services.InvalidateKB(aid)
+
+	// Reset conversation summary — bisnis udah ganti, konteks lama gak relevan.
+	database.DB.Model(&models.Agent{}).Where("id = ?", aid).
+		Updates(map[string]any{"conversation_summary": "", "last_summary_at": nil})
+
 	c.JSON(200, gin.H{
-		"message":       "Setup selesai!",
+		"message":       "Setup selesai! Knowledge lama dihapus & diganti.",
 		"system_prompt": systemPrompt,
 		"knowledge":     created,
 	})
