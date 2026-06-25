@@ -181,9 +181,19 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
             Satu nomor per baris (format <code>nomor,nama</code> untuk personalisasi), atau impor dari sumber di bawah.
           </Typography>
           <RecipientField agentId={agentId} value={recipientsText} onChange={v => { setRecipientsText(v); setChecked(null); if (errors.recipients) setErrors(p => ({...p, recipients: ''})); }} error={errors.recipients} />
-          <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, mb: 3, display: 'block' }}>
-            Disarankan pakai <b>"Pernah chat"</b> (hangat, aman). Sinkron WA / anggota grup lebih berisiko.
-          </Typography>
+          <Stack direction="row" spacing={1} sx={{ mt: 0.5, mb: 3, alignItems: 'center' }}>
+            <Button size="small" variant="outlined" onClick={() => {
+              const formatted = recipientsText.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+                const [num, ...rest] = line.split(',');
+                const n = normalizePhone(num);
+                return n ? `${n},${rest.join(',').trim()}` : line;
+              }).join('\n');
+              setRecipientsText(formatted);
+            }}>Format Otomatis</Button>
+            <Typography variant="caption" color="text.secondary">
+              Disarankan pakai <b>"Pernah chat"</b> (hangat, aman). Sinkron WA / anggota grup lebih berisiko.
+            </Typography>
+          </Stack>
 
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} sx={{ mb: 1.5 }}>
             <TextField type="number" size="small" label="Jeda min (detik)" value={minDelay} onChange={e => setMinDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
