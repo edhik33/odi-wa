@@ -104,7 +104,7 @@ func SearchCityViaAPI(query string) []models.ShippingCity {
 	}
 	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
 	reqURL := fmt.Sprintf("%s/destination/domestic-destination?search=%s&limit=5", baseURL, url.QueryEscape(query))
-	httpReq, _ := http.NewRequest("POST", reqURL, nil)
+	httpReq, _ := http.NewRequest("GET", reqURL, nil)
 	httpReq.Header.Set("key", apiKey)
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(httpReq)
@@ -161,7 +161,7 @@ func SeedShippingCities() {
 			break
 		}
 		reqURL := fmt.Sprintf("%s/destination/domestic-destination?search=%s&limit=200", baseURL, ch)
-		httpReq, _ := http.NewRequest("POST", reqURL, nil)
+		httpReq, _ := http.NewRequest("GET", reqURL, nil)
 		httpReq.Header.Set("key", apiKey)
 
 		resp, err := client.Do(httpReq)
