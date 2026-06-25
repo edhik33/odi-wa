@@ -59,8 +59,10 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const totalPages = Math.max(1, Math.ceil((bpage?.total || 0) / (bpage?.limit || 10)));
 
   const parsed = recipientsText.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
-    const [num, ...rest] = line.split(',');
-    return { number: normalizePhone(num), name: rest.join(',').trim() };
+    const parts = line.split(/[\t,]/);
+    const num = parts.find(p => /\d/.test(p)) || parts[0];
+    const name = parts.filter(p => p !== num && p.trim()).join(' ').trim();
+    return { number: normalizePhone(num), name };
   }).filter(r => r.number);
 
   const nameMap: Record<string, string> = {};
@@ -184,9 +186,11 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
           <Stack direction="row" spacing={1} sx={{ mt: 0.5, mb: 3, alignItems: 'center' }}>
             <Button size="small" variant="outlined" onClick={() => {
               const formatted = recipientsText.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
-                const [num, ...rest] = line.split(',');
+                const parts = line.split(/[\t,]/);
+                const num = parts.find(p => /\d/.test(p)) || parts[0];
+                const name = parts.filter(p => p !== num && p.trim()).join(' ').trim();
                 const n = normalizePhone(num);
-                return n ? `${n},${rest.join(',').trim()}` : line;
+                return n ? `${n},${name}` : line;
               }).join('\n');
               setRecipientsText(formatted);
             }}>Format Otomatis</Button>
