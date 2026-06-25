@@ -101,7 +101,6 @@ func ResolveCity(query string) []models.ShippingCity {
 func SearchCityViaAPI(query string) []models.ShippingCity {
 	apiKey := config.Env("RAJAONGKIR_API_KEY", "")
 	if apiKey == "" {
-		log.Printf("[shipping] SearchCityViaAPI: API key kosong")
 		return nil
 	}
 	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
@@ -111,13 +110,10 @@ func SearchCityViaAPI(query string) []models.ShippingCity {
 	client := &http.Client{Timeout: 10 * time.Second}
 	resp, err := client.Do(httpReq)
 	if err != nil {
-		log.Printf("[shipping] SearchCityViaAPI HTTP error: %v", err)
 		return nil
 	}
 	defer resp.Body.Close()
 	body, _ := io.ReadAll(resp.Body)
-
-	log.Printf("[shipping] SearchCityViaAPI status=%d body_preview=%s", resp.StatusCode, string(body[:min(200, len(body))]))
 
 	var apiResp struct {
 		Data []struct {

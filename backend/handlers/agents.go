@@ -482,15 +482,12 @@ func extractDestinationCity(msg string) string {
 
 func maybeBuildShippingContext(agent models.Agent, msg string) string {
 	if agent.OriginCityID == 0 || !detectShippingIntent(msg) {
-		log.Printf("[shipping] skip: origin=%d intent=%v msg=%q", agent.OriginCityID, detectShippingIntent(msg), msg[:min(50, len(msg))])
 		return ""
 	}
 	destText := extractDestinationCity(msg)
 	if destText == "" {
-		log.Printf("[shipping] skip: no destination extracted")
 		return ""
 	}
-	log.Printf("[shipping] intent detected, dest=%q", destText)
 
 	cities := services.ResolveCity(destText)
 	if len(cities) == 0 {
