@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
   Box, Typography, Card, CardContent, TextField, Button, Stack, Alert, AlertTitle, Chip,
   Table, TableBody, TableCell, TableHead, TableRow, LinearProgress, CircularProgress,
@@ -46,6 +46,9 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const [summary, setSummary] = useState<CheckResult['summary'] | null>(null);
   const [ackRisk, setAckRisk] = useState(false);
   const [page, setPage] = useState(1);
+  const [lastStartedId, setLastStartedId] = useState<number | null>(null);
+
+  const historyRef = useRef<HTMLDivElement | null>(null);
 
   const [detailId, setDetailId] = useState<number | null>(null);
   const [detailFilter, setDetailFilter] = useState<'all' | 'sent' | 'failed' | 'skipped'>('all');
@@ -101,10 +104,29 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
   const doSend = async () => {
     const recipients = registered.map(c => ({ number: c.number, name: nameMap[c.number] || '' }));
     if (recipients.length === 0) return;
-    await createBroadcast.mutateAsync({ message, recipients, min_delay: minDelay, max_delay: maxDelay, file });
+    const res = await createBroadcast.mutateAsync({ message, recipients, min_delay: minDelay, max_delay: maxDelay, file });
+    const started = res.data;
     setModalOpen(false);
+
+    // Bersihkan form agar user tahu broadcast sudah masuk proses
+    setMessage('');
+    setRecipientsText('');
+    setFile(null);
     setChecked(null);
-    setInfo(`Broadcast dimulai untuk ${recipients.length} nomor. Pantau progres di bawah.`);
+    setSummary(null);
+    setAckRisk(false);
+    setErrors({});
+
+    // Balik ke halaman 1 — broadcast terbaru di paling atas
+    setPage(1);
+    setLastStartedId(started?.id || null);
+
+    // Scroll ke riwayat
+    setTimeout(() => {
+      historyRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 100);
+
+    setInfo(`Broadcast dimulai untuk ${recipients.length} nomor. Form sudah dibersihkan agar tidak terkirim dua kali. Pantau progres di Riwayat Broadcast.`);
   };
 
   const checking = checkNumbers.isPending || checked === null;
@@ -206,7 +228,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
             <TextField type="number" size="small" label="Jeda maks (detik)" value={maxDelay} onChange={e => setMaxDelay(Number(e.target.value))} sx={{ width: { xs: '100%', sm: 140 } }} />
           </Stack>
 
-          {info && <Alert severity="info" sx={{ mb: 1.5 }}>{info}</Alert>}
+          {info && <Alert severity="success" sx={{ mb: 1.5 }}>{info}</Alert>}
 
           <Button variant="contained" startIcon={<SendIcon />} onClick={openModal}>
             Cek Nomor &amp; Kirim ({parsed.length})
@@ -215,7 +237,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
       </Card>
 
       {broadcasts.length > 0 && (
-        <Card>
+        <Card ref={historyRef}>
           <CardContent sx={{ overflowX: 'auto' }}>
             <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 1 }}>Riwayat Broadcast</Typography>
             <Table size="small">
@@ -234,8 +256,11 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
                   const pct = b.total ? Math.round((done / b.total) * 100) : 0;
                   const canCancel = ['pending', 'running', 'interrupted', 'cancel_requested'].includes(b.status);
                   return (
-                    <TableRow key={b.id} hover sx={{ cursor: 'pointer' }} onClick={() => setDetailId(b.id)}>
-                      <TableCell>{new Date(b.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}</TableCell>
+                    <TableRow key={b.id} hover sx={{ cursor: 'pointer', bgcolor: b.id === lastStartedId ? 'action.hover' : 'inherit' }} onClick={() => setDetailId(b.id)}>
+                      <TableCell>
+                        {new Date(b.created_at).toLocaleString('id-ID', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        {b.id === lastStartedId && <Chip label="Baru dimulai" size="small" color="primary" sx={{ ml: 1 }} />}
+                      </TableCell>
                       <TableCell sx={{ maxWidth: 220, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{b.message}</TableCell>
                       <TableCell align="center"><Chip label={b.status} size="small" color={STATUS_COLOR[b.status] ?? 'default'} /></TableCell>
                       <TableCell>
@@ -403,7 +428,7 @@ export default function BroadcastPanel({ agentId, seed }: { agentId: number; see
           <Button variant="contained" color={level === 'red' ? 'error' : 'primary'} onClick={doSend}
             disabled={checking || registered.length === 0 || sendBlocked || createBroadcast.isPending}
             startIcon={createBroadcast.isPending ? <CircularProgress size={16} /> : <SendIcon />}>
-            Kirim ke {registered.length} nomor
+            {createBroadcast.isPending ? 'Memulai broadcast…' : `Kirim ke ${registered.length} nomor`}
           </Button>
         </DialogActions>
       </Dialog>
