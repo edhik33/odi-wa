@@ -89,6 +89,52 @@ func ResolveCity(query string) []models.ShippingCity {
 	}
 	var cities []models.ShippingCity
 	database.DB.Where("search_text LIKE ?", "%"+query+"%").Order("city_name asc").Limit(5).Find(&cities)
+	if len(cities) > 0 {
+		return cities
+	}
+	// Fallback: search via API langsung (kalau DB belum di-seed)
+	return SearchCityViaAPI(query)
+}
+
+// SearchCityViaAPI mencari kota langsung ke RajaOngkir V2.
+func SearchCityViaAPI(query string) []models.ShippingCity {
+	apiKey := config.Env("RAJAONGKIR_API_KEY", "")
+	if apiKey == "" {
+		return nil
+	}
+	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
+	reqURL := fmt.Sprintf("%s/destination/domestic-destination?search=%s&limit=5", baseURL, url.QueryEscape(query))
+	httpReq, _ := http.NewRequest("POST", reqURL, nil)
+	httpReq.Header.Set("key", apiKey)
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(httpReq)
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+
+	var apiResp struct {
+		Data []struct {
+			ID       int    `json:"id"`
+			Label    string `json:"label"`
+			CityName string `json:"city_name"`
+			Province string `json:"province_name"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &apiResp); err != nil {
+		return nil
+	}
+	var cities []models.ShippingCity
+	for _, c := range apiResp.Data {
+		cities = append(cities, models.ShippingCity{
+			RajaOngkirID: c.ID,
+			CityName:     c.CityName,
+			Province:     c.Province,
+			FullName:     c.Label,
+			Type:         "",
+		})
+	}
 	return cities
 }
 
