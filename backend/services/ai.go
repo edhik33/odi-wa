@@ -152,6 +152,7 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 		"Untuk sapaan/obrolan umum, jawab normal & ramah. " +
 		"TAPI jika pelanggan menanyakan informasi SPESIFIK yang tidak ada di basis pengetahuan dan kamu tidak yakin jawabannya, " +
 		"JANGAN menebak dan JANGAN menyuruh menghubungi admin—cukup balas PERSIS dengan token ini saja tanpa teks lain: [[ESCALATE]]" +
+		"\n\nPENGECUALIAN: Jika pelanggan ingin ORDER/BELI/PESAN/CLOSING, JANGAN eskalasi! Itu bukan pertanyaan informasi spesifik — itu adalah niat membeli. Tanyakan langsung: nama customer, produk yang dipilih, dan nomor WA. Kamu hanya mengumpulkan data order, bukan mengarang detail produk." +
 		toneInstruction(tone)
 
 	if len(relevant) > 0 {
