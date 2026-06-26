@@ -121,10 +121,11 @@ func SetActivePreset(key string) bool {
 }
 
 // buildSystemPrompt merakit system prompt berlapis:
-//   Layer 1 — Constitution (hardcoded, tidak bisa diubah user)
-//   Layer 2 — Tenant Context (dari DB, TODO: nama bisnis, jam kerja, dll)
-//   Layer 3 — Persona (dari input user, opsional — kalau kosong dilewati)
-//   Layer 4 — Tone (ditangani ChatWithKnowledge via toneInstruction)
+//
+//	Layer 1 — Constitution (hardcoded, tidak bisa diubah user)
+//	Layer 2 — Tenant Context (dari DB, TODO: nama bisnis, jam kerja, dll)
+//	Layer 3 — Persona (dari input user, opsional — kalau kosong dilewati)
+//	Layer 4 — Tone (ditangani ChatWithKnowledge via toneInstruction)
 func buildSystemPrompt(agentID uint, persona string) string {
 	var sb strings.Builder
 	sb.WriteString("Kamu adalah asisten customer service dari ChatLoop, platform WhatsApp CRM. ")
@@ -155,6 +156,10 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 		"\n\nPENGECUALIAN: Jika pelanggan ingin ORDER/BELI/PESAN/CLOSING, JANGAN eskalasi! Itu bukan pertanyaan informasi spesifik — itu adalah niat membeli. Tanyakan langsung: nama customer, produk yang dipilih, dan nomor WA. Kamu hanya mengumpulkan data order, bukan mengarang detail produk." +
 		toneInstruction(tone)
 
+	if strings.Contains(systemPrompt, "ONGKIR_") {
+		enhancedPrompt += "\n\nATURAN ONGKIR REALTIME: Jika ada blok ONGKIR_REALTIME, ONGKIR_NEED_DESTINATION, ONGKIR_AMBIGUOUS, ONGKIR_NOTFOUND, ONGKIR_EMPTY, atau ONGKIR_ERROR di system prompt/persona, blok itu adalah data operasional resmi yang boleh dipakai. Untuk pertanyaan ongkir, JANGAN balas [[ESCALATE]]. Jawab sesuai instruksi dalam blok ongkir tersebut."
+	}
+
 	if len(relevant) > 0 {
 		var kb strings.Builder
 		kb.WriteString("\n\nBASIS PENGETAHUAN (jadikan ini sumber utama jawaban; kalau pertanyaan tidak tercakup, jawab seadanya/jujur tidak tahu):\n")
@@ -183,7 +188,7 @@ func ChatWithKnowledge(agentID uint, systemPrompt, tone, userMsg string, history
 	temp := float32(0.7)
 	maxTok := 800
 	if len(relevant) > 0 {
-		temp = 0.4  // faktual & konsisten menjawab dari knowledge base
+		temp = 0.4   // faktual & konsisten menjawab dari knowledge base
 		maxTok = 900 // ruang cukup untuk knowledge panjang (daftar harga, syarat, dsb.)
 	}
 

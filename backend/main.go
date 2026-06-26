@@ -114,6 +114,7 @@ func main() {
 			// Multi-agent (CS).
 			auth.GET("/agents", handlers.ListAgents)
 			auth.GET("/agents-status", handlers.AgentStatuses)
+			auth.GET("/shipping/cities", handlers.SearchShippingCities)
 			auth.POST("/agents", handlers.CreateAgent)
 			auth.PUT("/agents/:id", handlers.UpdateAgent)
 			auth.DELETE("/agents/:id", handlers.DeleteAgent)
@@ -156,7 +157,7 @@ func main() {
 			auth.POST("/agents/:id/crm/contacts", handlers.CreateSavedContact)
 			auth.PUT("/agents/:id/crm/contacts/:cid", handlers.UpdateSavedContact)
 			auth.DELETE("/agents/:id/crm/contacts/:cid", handlers.DeleteSavedContact)
-		auth.POST("/agents/:id/crm/contacts/bulk-tag", handlers.BulkTagSavedContacts)
+			auth.POST("/agents/:id/crm/contacts/bulk-tag", handlers.BulkTagSavedContacts)
 			auth.GET("/agents/:id/follow-ups", handlers.ListFollowUps)
 			auth.POST("/agents/:id/follow-ups", handlers.CreateFollowUp)
 			auth.PUT("/agents/:id/follow-ups/:fid", handlers.UpdateFollowUp)

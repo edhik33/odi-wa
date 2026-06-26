@@ -254,6 +254,22 @@ export interface Agent {
   business_start?: string;
   business_end?: string;
   away_message?: string;
+  spreadsheet_url?: string;
+  spreadsheet_sheet_name?: string;
+  sheet_sync_enabled?: boolean;
+  origin_city_id?: number;
+  origin_city_name?: string;
+  default_weight_gram?: number;
+  enabled_couriers?: string;
+}
+
+export interface ShippingCity {
+  id: number;
+  rajaongkir_id: number;
+  province: string;
+  type: string;
+  city_name: string;
+  full_name: string;
 }
 
 export interface KnowledgeItem {

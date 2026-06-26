@@ -23,6 +23,8 @@ import FollowUpIcon from '@mui/icons-material/ScheduleSendOutlined';
 import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import PersonIcon from '@mui/icons-material/Person';
+import LocalShippingIcon from '@mui/icons-material/LocalShippingOutlined';
+import SearchIcon from '@mui/icons-material/Search';
 import { QRCodeSVG } from 'qrcode.react';
 // logo removed — text-only branding
 import api from '../services/api';
@@ -47,6 +49,7 @@ import {
   useAddKnowledge, useDeleteKnowledge, useGenerateKnowledge,
   useAgentHandoffs, useResumeHandoff,
 } from '../hooks';
+import type { ShippingCity } from '../types';
 
 const TONES = [
   { value: 'ramah', label: '😊 Ramah' },
@@ -54,6 +57,16 @@ const TONES = [
   { value: 'santai', label: '🏖️ Santai' },
   { value: 'persuasif', label: '💪 Persuasif' },
   { value: 'custom', label: '✏️ Custom' },
+];
+
+const COURIER_OPTIONS = [
+  { code: 'jne', label: 'JNE' },
+  { code: 'jnt', label: 'J&T' },
+  { code: 'sicepat', label: 'SiCepat' },
+  { code: 'pos', label: 'POS' },
+  { code: 'tiki', label: 'TIKI' },
+  { code: 'anteraja', label: 'Anteraja' },
+  { code: 'wahana', label: 'Wahana' },
 ];
 
 const NAV_GROUPS = [
@@ -105,6 +118,13 @@ export default function Dashboard() {
   const [bhStart, setBhStart] = useState('08:00');
   const [bhEnd, setBhEnd] = useState('21:00');
   const [awayMsg, setAwayMsg] = useState('');
+  const [originCityId, setOriginCityId] = useState(0);
+  const [originCityName, setOriginCityName] = useState('');
+  const [defaultWeightGram, setDefaultWeightGram] = useState(1000);
+  const [enabledCouriers, setEnabledCouriers] = useState('jne,jnt,sicepat');
+  const [cityQuery, setCityQuery] = useState('');
+  const [cityResults, setCityResults] = useState<ShippingCity[]>([]);
+  const [cityLoading, setCityLoading] = useState(false);
   const [newQ, setNewQ] = useState('');
   const [newA, setNewA] = useState('');
   const [newTags, setNewTags] = useState('');
@@ -185,6 +205,9 @@ export default function Dashboard() {
       setBhEnd(a.business_end || '21:00'); setAwayMsg(a.away_message || '');
       setSheetUrl(a.spreadsheet_url || ''); setSheetName(a.spreadsheet_sheet_name || 'Leads');
       setSheetSync(!!a.sheet_sync_enabled);
+      setOriginCityId(a.origin_city_id || 0); setOriginCityName(a.origin_city_name || '');
+      setDefaultWeightGram(a.default_weight_gram || 1000); setEnabledCouriers(a.enabled_couriers || 'jne,jnt,sicepat');
+      setCityQuery(a.origin_city_name || ''); setCityResults([]);
     }
   }, [agentId, agents]);
 
@@ -208,6 +231,42 @@ export default function Dashboard() {
     const t = setInterval(() => setQrSeconds(s => (s > 0 ? s - 1 : 0)), 1000);
     return () => clearInterval(t);
   }, [qrModalOpen, qr]);
+
+  const activeCouriers = enabledCouriers.split(',').map(s => s.trim()).filter(Boolean);
+  const toggleCourier = (code: string, checked: boolean) => {
+    const next = new Set(activeCouriers);
+    if (checked) next.add(code);
+    else next.delete(code);
+    setEnabledCouriers(Array.from(next).join(','));
+    if (settingsErrors.enabledCouriers) setSettingsErrors(p => ({ ...p, enabledCouriers: '' }));
+  };
+
+  const pickOriginCity = (city: ShippingCity) => {
+    const label = [city.full_name || city.city_name, city.province].filter(Boolean).join(', ');
+    setOriginCityId(city.rajaongkir_id);
+    setOriginCityName(label);
+    setCityQuery(label);
+    if (settingsErrors.originCity) setSettingsErrors(p => ({ ...p, originCity: '' }));
+  };
+
+  const searchCities = async () => {
+    const q = cityQuery.trim();
+    if (q.length < 2) {
+      setCityResults([]);
+      swalToast('Ketik minimal 2 huruf kota asal', 'warning');
+      return;
+    }
+    setCityLoading(true);
+    try {
+      const res = await api.get('/shipping/cities', { params: { q } });
+      setCityResults(res.data.data || []);
+      if ((res.data.data || []).length === 0) swalToast('Kota tidak ditemukan', 'warning');
+    } catch {
+      swalToast('Gagal mencari kota', 'error');
+    } finally {
+      setCityLoading(false);
+    }
+  };
 
   // ---- Handlers ----
 
@@ -242,14 +301,23 @@ export default function Dashboard() {
   const saveAgent = async () => {
     const e: Record<string, string> = {};
     if (!agentName.trim()) e.agentName = 'Nama CS wajib diisi';
+    if (originCityId > 0 && !originCityName.trim()) e.originCity = 'Pilih kota asal dari hasil pencarian';
+    if (originCityName.trim() && originCityId <= 0) e.originCity = 'Pilih kota asal dari hasil pencarian';
+    if (originCityId > 0 && Number(defaultWeightGram) <= 0) e.defaultWeightGram = 'Berat harus lebih dari 0 gram';
+    if (originCityId > 0 && activeCouriers.length === 0) e.enabledCouriers = 'Pilih minimal 1 kurir';
     setSettingsErrors(e);
     if (Object.keys(e).length > 0) return;
     try {
+      const weight = Math.max(1, Math.round(Number(defaultWeightGram) || 1000));
       await saveAgentMut.mutateAsync({
         name: agentName, system_prompt: prompt, tone,
         greeting_enabled: greetEnabled, greeting_message: greetMsg,
         business_hours_enabled: bhEnabled, business_start: bhStart, business_end: bhEnd, away_message: awayMsg,
         spreadsheet_url: sheetUrl, spreadsheet_sheet_name: sheetName, sheet_sync_enabled: sheetSync,
+        origin_city_id: originCityId || 0,
+        origin_city_name: originCityName.trim(),
+        default_weight_gram: weight,
+        enabled_couriers: activeCouriers.join(',') || 'jne,jnt,sicepat',
       });
       setSaved(true); setTimeout(() => setSaved(false), 2000);
     } catch (err: any) {
@@ -698,6 +766,85 @@ export default function Dashboard() {
                   onChange={e => setPrompt(e.target.value)}
                   placeholder='Opsional. Contoh: Kamu admin "Toko Maju Jaya", jual sparepart motor. Bantu pelanggan soal stok, harga, & cara order.'
                   sx={{ mb: 1.5 }} />
+
+                <Box sx={{ mb: 1.5, p: 1.25, borderRadius: 1, border: '1px solid', borderColor: originCityId ? 'success.light' : 'divider', bgcolor: originCityId ? 'rgba(37,211,102,0.05)' : 'transparent' }}>
+                  <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
+                    <LocalShippingIcon fontSize="small" color={originCityId ? 'success' : 'disabled'} />
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Cek Ongkir Realtime</Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        AI menjawab ongkir dari RajaOngkir saat customer menyebut tujuan.
+                      </Typography>
+                    </Box>
+                    <Chip size="small" label={originCityId ? 'Aktif' : 'Belum diset'} color={originCityId ? 'success' : 'default'} variant={originCityId ? 'filled' : 'outlined'} />
+                  </Stack>
+
+                  <Grid container spacing={1.25}>
+                    <Grid size={{ xs: 12, md: 6 }}>
+                      <Stack direction="row" spacing={0.75}>
+                        <TextField fullWidth size="small" label="Cari kota asal" value={cityQuery}
+                          onChange={e => setCityQuery(e.target.value)}
+                          onKeyDown={e => { if (e.key === 'Enter') searchCities(); }}
+                          placeholder="Contoh: Bandung" />
+                        <Button size="small" variant="outlined" startIcon={cityLoading ? <CircularProgress size={14} /> : <SearchIcon />}
+                          onClick={searchCities} disabled={cityLoading} sx={{ flexShrink: 0 }}>
+                          Cari
+                        </Button>
+                      </Stack>
+                      {cityResults.length > 0 && (
+                        <FormControl fullWidth size="small" sx={{ mt: 0.75 }} error={!!settingsErrors.originCity}>
+                          <InputLabel>Pilih kota asal</InputLabel>
+                          <Select value={cityResults.some(c => c.rajaongkir_id === originCityId) ? originCityId : ''} label="Pilih kota asal"
+                            onChange={e => {
+                              const city = cityResults.find(c => c.rajaongkir_id === Number(e.target.value));
+                              if (city) pickOriginCity(city);
+                            }}>
+                            {cityResults.map(c => (
+                              <MenuItem key={c.rajaongkir_id} value={c.rajaongkir_id}>
+                                {[c.full_name || c.city_name, c.province].filter(Boolean).join(', ')}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                      )}
+                      {settingsErrors.originCity && <Typography variant="caption" color="error">{settingsErrors.originCity}</Typography>}
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <TextField fullWidth size="small" label="Kota asal aktif" value={originCityName}
+                        onChange={e => { setOriginCityName(e.target.value); setOriginCityId(0); }}
+                        placeholder="Belum dipilih" />
+                    </Grid>
+
+                    <Grid size={{ xs: 12, sm: 6, md: 3 }}>
+                      <TextField fullWidth size="small" type="number" label="Berat default (gram)" value={defaultWeightGram}
+                        onChange={e => {
+                          setDefaultWeightGram(Number(e.target.value));
+                          if (settingsErrors.defaultWeightGram) setSettingsErrors(p => ({ ...p, defaultWeightGram: '' }));
+                        }}
+                        error={!!settingsErrors.defaultWeightGram}
+                        helperText={settingsErrors.defaultWeightGram || 'Dipakai kalau produk belum punya berat.'}
+                        slotProps={{ htmlInput: { min: 1, step: 100 } }} />
+                    </Grid>
+                  </Grid>
+
+                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'wrap', mt: 1, rowGap: 0 }}>
+                    {COURIER_OPTIONS.map(c => (
+                      <FormControlLabel key={c.code}
+                        control={<Checkbox size="small" checked={activeCouriers.includes(c.code)} onChange={e => toggleCourier(c.code, e.target.checked)} />}
+                        label={<Typography variant="body2">{c.label}</Typography>}
+                        sx={{ mr: 1 }} />
+                    ))}
+                  </Stack>
+                  {settingsErrors.enabledCouriers && <Typography variant="caption" color="error">{settingsErrors.enabledCouriers}</Typography>}
+
+                  {originCityId > 0 && (
+                    <Button size="small" variant="text" color="error" startIcon={<DeleteIcon />}
+                      onClick={() => { setOriginCityId(0); setOriginCityName(''); setCityQuery(''); setCityResults([]); }}>
+                      Matikan cek ongkir
+                    </Button>
+                  )}
+                </Box>
 
                 <Divider sx={{ mb: 1.5 }} />
 

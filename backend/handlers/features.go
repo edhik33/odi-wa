@@ -37,6 +37,9 @@ func TestChat(c *gin.Context) {
 	if prompt == "" {
 		prompt = "Kamu adalah asisten AI yang ramah. Jawab dalam bahasa Indonesia."
 	}
+	if shippingCtx := maybeBuildShippingContext(agent, req.Message, nil); shippingCtx != "" {
+		prompt = prompt + "\n\n" + shippingCtx
+	}
 	tone := agent.Tone
 	if tone == "" {
 		tone = "ramah"
@@ -207,7 +210,9 @@ func InboxSend(c *gin.Context) {
 // ChatPresence mengirim indikator "mengetik" ke kontak (dipanggil dari Inbox saat CS mengetik).
 func ChatPresence(c *gin.Context) {
 	id, ok := resolveAgent(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	var req struct {
 		To     string `json:"to"`
 		Active bool   `json:"active"`
@@ -223,7 +228,9 @@ func ChatPresence(c *gin.Context) {
 // RevokeMessage menghapus (unsend) pesan yang sudah dikirim.
 func RevokeMessage(c *gin.Context) {
 	id, ok := resolveAgent(c)
-	if !ok { return }
+	if !ok {
+		return
+	}
 	msgID := c.Param("msgId")
 	if msgID == "" {
 		c.JSON(400, gin.H{"error": "msgId wajib"})
