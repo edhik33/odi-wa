@@ -99,6 +99,26 @@ func ResolveCity(query string) []models.ShippingCity {
 	if len(cities) > 0 {
 		return cities
 	}
+	// Fallback 1: coba per kata (untuk "jakarta utara" → ambil "jakarta")
+	words := strings.Fields(query)
+	if len(words) > 1 {
+		for _, w := range words {
+			if len(w) >= 3 {
+				database.DB.Where("search_text LIKE ?", "%"+w+"%").Order("city_name asc").Limit(5).Find(&cities)
+				if len(cities) > 0 {
+					return cities
+				}
+			}
+		}
+	}
+	// Fallback 2: coba 4 karakter pertama (toleransi typo: "surbaya" → "surb")
+	if len(query) >= 4 {
+		prefix := query[:4]
+		database.DB.Where("search_text LIKE ?", "%"+prefix+"%").Order("city_name asc").Limit(5).Find(&cities)
+		if len(cities) > 0 {
+			return cities
+		}
+	}
 	// Fallback: search via API langsung (kalau DB belum di-seed)
 	return SearchCityViaAPI(query)
 }

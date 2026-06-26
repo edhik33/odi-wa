@@ -481,10 +481,18 @@ func extractDestinationCity(msg string) string {
 			rest := msg[idx+len(p):]
 			words := strings.Fields(rest)
 			if len(words) > 0 {
-				candidate := words[0]
+				// Skip preposition awal: "ke", "di"
+				start := 0
+				if words[0] == "ke" || words[0] == "di" {
+					start = 1
+				}
+				if start >= len(words) {
+					return ""
+				}
+				candidate := words[start]
 				// Ambil kata kedua kalau bukan stop word
-				if len(words) > 1 && !stopWords[words[1]] {
-					candidate = words[0] + " " + words[1]
+				if start+1 < len(words) && !stopWords[words[start+1]] {
+					candidate = words[start] + " " + words[start+1]
 				}
 				return strings.TrimSpace(candidate)
 			}
