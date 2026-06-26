@@ -285,5 +285,6 @@ Pengiriman: %s
 Jam Operasional: %s
 Nama CS: %s
 
-Buat system prompt singkat (maks 6 kalimat) yang mencakup: siapa AI ini, produk apa yang dijual, cara order, gaya bicara (ramah, panggil "kak"), dan aturan closing (tanya nama+produk+nomer).`, req.BizName, req.BizType, req.Products, req.PriceRange, req.OrderFlow, req.Shipping, req.Hours, req.CSName)
+Buat system prompt singkat (maks 6 kalimat) yang mencakup: siapa AI ini, produk apa yang dijual, cara order, gaya bicara (ramah, panggil "kak"), dan aturan closing (tanya nama+produk+nomer).
+PENTING: JANGAN tambahkan kalimat "akan dihitung", "sedang dihitung", "nanti malam dikabari", atau janji follow-up palsu. Setelah closing, akhiri dengan: "Pesanan sudah dicatat ya kak, tim kami akan proses. Ada yang bisa dibantu lagi?"`, req.BizName, req.BizType, req.Products, req.PriceRange, req.OrderFlow, req.Shipping, req.Hours, req.CSName)
 }
