@@ -771,10 +771,7 @@ export default function Dashboard() {
                   <Stack direction="row" spacing={1} sx={{ alignItems: 'center', mb: 1 }}>
                     <LocalShippingIcon fontSize="small" color={originCityId ? 'success' : 'disabled'} />
                     <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Cek Ongkir Realtime</Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        AI menjawab ongkir dari RajaOngkir saat customer menyebut tujuan.
-                      </Typography>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>Kota Asal & Ekspedisi</Typography>
                     </Box>
                     <Chip size="small" label={originCityId ? 'Aktif' : 'Belum diset'} color={originCityId ? 'success' : 'default'} variant={originCityId ? 'filled' : 'outlined'} />
                   </Stack>
