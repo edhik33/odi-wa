@@ -474,6 +474,7 @@ func extractDestinationCity(msg string) string {
 		"mbak": true, "mba": true, "om": true, "bos": true, "koh": true, "deh": true,
 		"yah": true, "weh": true, "lur": true, "boss": true, "kuy": true, "guy": true,
 		"brapa": true, "berape": true, "kaka": true, "abang": true, "kanda": true,
+		"yaa": true, "sihh": true, "dehh": true, "ap": true, "berap": true,
 	}
 	for _, p := range patterns {
 		if idx := strings.Index(msg, p); idx >= 0 {
@@ -505,7 +506,19 @@ func maybeBuildShippingContext(agent models.Agent, msg string) string {
 		destText = extractDestinationCity(msg)
 	} else {
 		// Follow-up: coba deteksi nama kota langsung (mis. "Jakarta Utara kak")
-		// dari chat setelah ambiguous list. Bersihkan suffix panggilan.
+		// dari chat setelah ambiguous list. Skip kalau mengandung kata tanya.
+		lower := strings.ToLower(msg)
+		questionWords := []string{"kenapa", "kok", "gimana", "bagaimana", "apa ", "apakah", "lama", "banget", "resp", "respon"}
+		isQuestion := false
+		for _, qw := range questionWords {
+			if strings.Contains(lower, qw) {
+				isQuestion = true
+				break
+			}
+		}
+		if isQuestion {
+			return ""
+		}
 		cleaned := strings.TrimSpace(msg)
 		for _, suffix := range []string{" kak", " gan", " min", " bro", " bang", " mas", " mbak", " mba", " ya", " dong"} {
 			cleaned = strings.TrimSuffix(cleaned, suffix)
