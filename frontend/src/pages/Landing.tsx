@@ -1,6 +1,6 @@
 import { Box, Link, Grid, Divider, Container, Typography, Button, Card, CardContent, Stack, Avatar, Chip, type ButtonProps } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
-import heroLogo from '../assets/Logo-chatloop-gradients.png';
+// hero logo removed — text-only branding
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutlined';
 import LightbulbOutlinedIcon from '@mui/icons-material/LightbulbOutlined';
 import SupportAgentOutlinedIcon from '@mui/icons-material/SupportAgentOutlined';
@@ -20,17 +20,17 @@ const FEATURES = [
   {
     icon: <ChatBubbleOutlineIcon />,
     title: 'Balasan yang terasa seperti manusia',
-    body: 'ChatLoop menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
+    body: 'Bales menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
   },
   {
     icon: <LightbulbOutlinedIcon />,
     title: 'Paham detail bisnismu',
-    body: 'Ajari sekali lewat knowledge base. ChatLoop mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
+    body: 'Ajari sekali lewat knowledge base. Bales mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
   },
   {
     icon: <SupportAgentOutlinedIcon />,
     title: 'Tahu kapan harus memanggilmu',
-    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, ChatLoop berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
+    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, Bales berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
   },
   {
     icon: <DevicesOutlinedIcon />,
@@ -42,7 +42,7 @@ const FEATURES = [
 const STEPS = [
   { n: '1', title: 'Hubungkan WhatsApp', body: 'Pindai satu QR, nomormu langsung tersambung.' },
   { n: '2', title: 'Ajari sebentar', body: 'Ceritakan soal produk dan pilih gaya bicaranya.' },
-  { n: '3', title: 'Biarkan ChatLoop bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
+  { n: '3', title: 'Biarkan Bales bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
 ];
 
 function CtaButton({ size = 'large', loggedIn, onClick }: { size?: ButtonProps['size']; loggedIn: boolean; onClick: () => void }) {
@@ -65,7 +65,7 @@ export default function Landing() {
       <Box sx={{ position: 'sticky', top: 0, zIndex: 20, bgcolor: 'rgba(244,251,246,0.85)', backdropFilter: 'blur(8px)', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <img src={heroLogo} alt="ChatLoop" style={{ height: 'clamp(28px, 6vw, 38px)' }} />
+            <Typography sx={{ fontWeight: 900, fontSize: "clamp(24px, 6vw, 36px)", color: "primary.main" }}>Bales</Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Button onClick={() => navigate('/login')}>Masuk</Button>
@@ -84,7 +84,7 @@ export default function Landing() {
             Pelanggan chat kapan saja, bisnismu tetap menjawab
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 400, color: 'text.secondary', mb: 4, maxWidth: 620, mx: 'auto', fontSize: 18 }}>
-            ChatLoop membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
+            Bales membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
             <CtaButton loggedIn={loggedIn} onClick={goToCta} />
@@ -116,7 +116,7 @@ export default function Landing() {
           ))}
         </Grid>
         <Typography variant="h5" sx={{ fontWeight: 800, textAlign: 'center', mt: 5, color: 'primary.dark' }}>
-          Mulai sekarang, semua itu biar ChatLoop yang urus.
+          Mulai sekarang, semua itu biar Bales yang urus.
         </Typography>
       </Container>
 
@@ -124,10 +124,10 @@ export default function Landing() {
       <Box sx={{ bgcolor: '#fff', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ py: { xs: 7, md: 10 } }}>
           <Typography variant="h4" sx={{ fontWeight: 800, textAlign: 'center', mb: 1 }}>
-            Kenapa pemilik bisnis jatuh cinta sama ChatLoop
+            Kenapa pemilik bisnis jatuh cinta sama Bales
           </Typography>
           <Typography color="text.secondary" sx={{ textAlign: 'center', mb: 5 }}>
-            Bukan sekadar balas otomatis. ChatLoop hadir layaknya CS terbaikmu.
+            Bukan sekadar balas otomatis. Bales hadir layaknya CS terbaikmu.
           </Typography>
           <Grid container spacing={3}>
             {FEATURES.map((f, i) => (
@@ -208,7 +208,7 @@ export default function Landing() {
             Pelanggan berikutnya bisa datang malam ini juga
           </Typography>
           <Typography sx={{ opacity: 0.9, mb: 4, fontSize: 18 }}>
-            Coba ChatLoop gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
+            Coba Bales gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
           </Typography>
           <Button variant="contained" size="large" onClick={() => navigate(loggedIn ? '/app' : '/login')}
             sx={{ bgcolor: '#fff', color: 'primary.dark', fontWeight: 800, px: 5, py: 1.5, '&:hover': { bgcolor: '#f0f0f0' } }}>
@@ -222,7 +222,7 @@ export default function Landing() {
         <Container maxWidth="lg">
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#fff', mb: 1 }}>ChatLoop</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#fff', mb: 1 }}>Bales</Typography>
               <Typography variant="body2" sx={{ maxWidth: 280 }}>
                 Asisten WhatsApp AI yang membalas pelanggan otomatis, hafal produkmu, dan tahu kapan harus memanggilmu.
               </Typography>
@@ -237,13 +237,13 @@ export default function Landing() {
             </Grid>
             <Grid size={{ xs: 6, md: 4 }}>
               <Typography sx={{ fontWeight: 700, color: '#fff', mb: 1 }}>Kontak</Typography>
-              <Typography variant="body2">Email: halo@chatloop.id</Typography>
+              <Typography variant="body2">Email: halo@balesin.web.id</Typography>
               <Typography variant="body2">WhatsApp: +62 851-2345-6789</Typography>
             </Grid>
           </Grid>
           <Divider sx={{ my: 3, borderColor: 'grey.700' }} />
           <Typography variant="caption" color="grey.500">
-            © {new Date().getFullYear()} ChatLoop. Seluruh hak cipta dilindungi.
+            © {new Date().getFullYear()} Bales. Seluruh hak cipta dilindungi.
           </Typography>
         </Container>
       </Box>

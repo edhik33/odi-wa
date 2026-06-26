@@ -24,7 +24,7 @@ import ContactsIcon from '@mui/icons-material/ContactsOutlined';
 import CreditCardIcon from '@mui/icons-material/CreditCardOutlined';
 import PersonIcon from '@mui/icons-material/Person';
 import { QRCodeSVG } from 'qrcode.react';
-import logo from '../assets/logo-chatloop-1.png';
+// logo removed — text-only branding
 import api from '../services/api';
 import { swalConfirm, swalPrompt, swalAlert, swalToast } from '../services/swal';
 import SettingsIcon from '@mui/icons-material/Settings';
@@ -363,9 +363,9 @@ export default function Dashboard() {
         <Stack direction={{ xs: 'row', md: 'column' }} spacing={1} sx={{ alignItems: { xs: 'center', md: 'stretch' } }}>
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0, flexShrink: 0 }}>
             <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} sx={{ display: { xs: 'inline-flex', md: 'none' }, flexShrink: 0 }}><MenuIcon /></IconButton>
-            <img src={logo} alt="ChatLoop" style={{ width: 40, height: 40, flexShrink: 0 }} />
+            <Box sx={{ width: 40, height: 40, bgcolor: "primary.main", borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Typography sx={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>B</Typography></Box>
             <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'block' } }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>ChatLoop</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>Bales</Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -910,7 +910,7 @@ export default function Dashboard() {
                 control={<Checkbox checked={riskAck} onChange={e => setRiskAck(e.target.checked)} size="small" color={riskAck ? 'primary' : 'error'} sx={{ py: 0, pl: 0 }} />}
                 label={
                   <Typography variant="caption" color={riskAck ? 'text.secondary' : 'error'} sx={{ textAlign: 'left', display: 'block', lineHeight: 1.4 }}>
-                    Saya paham WhatsApp saya berisiko diblokir dan ChatLoop tidak bertanggung jawab atas hal itu.
+                    Saya paham WhatsApp saya berisiko diblokir dan Bales tidak bertanggung jawab atas hal itu.
                   </Typography>
                 }
               />

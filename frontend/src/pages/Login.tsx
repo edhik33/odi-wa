@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Box, Card, CardContent, TextField, Button, Typography, Alert, CircularProgress, Link } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
-import logo from '../assets/logo-chatloop-login.png';
+// logo removed — text-only branding
 
 declare global { interface Window { turnstile: any; __TURNSTILE_SITE_KEY__?: string } }
 
@@ -64,7 +64,7 @@ export default function Login() {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', p: 2 }}>
       <Card sx={{ width: '100%', maxWidth: 400 }}>
         <Box sx={{ textAlign: 'center', pt: 3, pb: 0, px: { xs: 3, sm: 4 } }}>
-          <img src={logo} alt="ChatLoop" style={{ width: '55%', maxWidth: 200, height: 'auto', display: 'block', margin: '0 auto' }} />
+          <Typography sx={{ fontWeight: 900, fontSize: 28, color: "primary.main", textAlign: "center", mb: 1 }}>Bales</Typography>
         </Box>
         <CardContent sx={{ pt: 1, px: { xs: 3, sm: 4 }, pb: { xs: 3, sm: 4 }, '&:last-child': { pb: { xs: 3, sm: 4 } } }}>
             {error && <Alert severity={cooldown > 0 ? 'warning' : 'error'} sx={{ mb: 2 }}>{error}</Alert>}
