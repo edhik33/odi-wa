@@ -20,17 +20,17 @@ const FEATURES = [
   {
     icon: <ChatBubbleOutlineIcon />,
     title: 'Balasan yang terasa seperti manusia',
-    body: 'Bales menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
+    body: 'Balesin menjawab dengan gaya bahasa yang kamu pilih, hangat dan tidak kaku. Pelanggan merasa sungguh didengar, bukan sedang bicara dengan robot.',
   },
   {
     icon: <LightbulbOutlinedIcon />,
     title: 'Paham detail bisnismu',
-    body: 'Ajari sekali lewat knowledge base. Bales mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
+    body: 'Ajari sekali lewat knowledge base. Balesin mengingat harga, stok, dan aturan tokomu, lalu menjawab persis sesuai yang kamu mau.',
   },
   {
     icon: <SupportAgentOutlinedIcon />,
     title: 'Tahu kapan harus memanggilmu',
-    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, Bales berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
+    body: 'Saat ada yang ragu atau butuh sentuhan pribadi, Balesin berhenti sejenak dan menyerahkan obrolan ke kamu. Tidak ada pelanggan yang dibiarkan terlantar.',
   },
   {
     icon: <DevicesOutlinedIcon />,
@@ -42,7 +42,7 @@ const FEATURES = [
 const STEPS = [
   { n: '1', title: 'Hubungkan WhatsApp', body: 'Pindai satu QR, nomormu langsung tersambung.' },
   { n: '2', title: 'Ajari sebentar', body: 'Ceritakan soal produk dan pilih gaya bicaranya.' },
-  { n: '3', title: 'Biarkan Bales bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
+  { n: '3', title: 'Biarkan Balesin bekerja', body: 'Pelanggan dibalas otomatis, siang dan malam, tanpa kamu pegang HP.' },
 ];
 
 function CtaButton({ size = 'large', loggedIn, onClick }: { size?: ButtonProps['size']; loggedIn: boolean; onClick: () => void }) {
@@ -65,7 +65,7 @@ export default function Landing() {
       <Box sx={{ position: 'sticky', top: 0, zIndex: 20, bgcolor: 'rgba(244,251,246,0.85)', backdropFilter: 'blur(8px)', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', py: 1.5 }}>
           <Stack direction="row" spacing={1} sx={{ alignItems: 'center' }}>
-            <Typography sx={{ fontWeight: 900, fontSize: "clamp(24px, 6vw, 36px)", color: "primary.main" }}>Bales</Typography>
+            <Typography sx={{ fontWeight: 900, fontSize: "clamp(24px, 6vw, 36px)", color: "primary.main" }}>Balesin</Typography>
           </Stack>
           <Stack direction="row" spacing={1}>
             <Button onClick={() => navigate('/login')}>Masuk</Button>
@@ -84,7 +84,7 @@ export default function Landing() {
             Pelanggan chat kapan saja, bisnismu tetap menjawab
           </Typography>
           <Typography variant="body1" sx={{ fontWeight: 400, color: 'text.secondary', mb: 4, maxWidth: 620, mx: 'auto', fontSize: 18 }}>
-            Bales membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
+            Balesin membalas setiap pesan masuk dengan ramah dan cepat, hafal produkmu, dan tahu kapan harus memanggilmu. Kamu istirahat, jualan tetap jalan.
           </Typography>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ justifyContent: 'center', alignItems: 'center' }}>
             <CtaButton loggedIn={loggedIn} onClick={goToCta} />
@@ -116,7 +116,7 @@ export default function Landing() {
           ))}
         </Grid>
         <Typography variant="h5" sx={{ fontWeight: 800, textAlign: 'center', mt: 5, color: 'primary.dark' }}>
-          Mulai sekarang, semua itu biar Bales yang urus.
+          Mulai sekarang, semua itu biar Balesin yang urus.
         </Typography>
       </Container>
 
@@ -124,10 +124,10 @@ export default function Landing() {
       <Box sx={{ bgcolor: '#fff', borderTop: '1px solid', borderBottom: '1px solid', borderColor: 'divider' }}>
         <Container maxWidth="lg" sx={{ py: { xs: 7, md: 10 } }}>
           <Typography variant="h4" sx={{ fontWeight: 800, textAlign: 'center', mb: 1 }}>
-            Kenapa pemilik bisnis jatuh cinta sama Bales
+            Kenapa pemilik bisnis jatuh cinta sama Balesin
           </Typography>
           <Typography color="text.secondary" sx={{ textAlign: 'center', mb: 5 }}>
-            Bukan sekadar balas otomatis. Bales hadir layaknya CS terbaikmu.
+            Bukan sekadar balas otomatis. Balesin hadir layaknya CS terbaikmu.
           </Typography>
           <Grid container spacing={3}>
             {FEATURES.map((f, i) => (
@@ -208,7 +208,7 @@ export default function Landing() {
             Pelanggan berikutnya bisa datang malam ini juga
           </Typography>
           <Typography sx={{ opacity: 0.9, mb: 4, fontSize: 18 }}>
-            Coba Bales gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
+            Coba Balesin gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
           </Typography>
           <Button variant="contained" size="large" onClick={() => navigate(loggedIn ? '/app' : '/login')}
             sx={{ bgcolor: '#fff', color: 'primary.dark', fontWeight: 800, px: 5, py: 1.5, '&:hover': { bgcolor: '#f0f0f0' } }}>
@@ -222,7 +222,7 @@ export default function Landing() {
         <Container maxWidth="lg">
           <Grid container spacing={3}>
             <Grid size={{ xs: 12, md: 4 }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#fff', mb: 1 }}>Bales</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 18, color: '#fff', mb: 1 }}>Balesin</Typography>
               <Typography variant="body2" sx={{ maxWidth: 280 }}>
                 Asisten WhatsApp AI yang membalas pelanggan otomatis, hafal produkmu, dan tahu kapan harus memanggilmu.
               </Typography>
@@ -243,7 +243,7 @@ export default function Landing() {
           </Grid>
           <Divider sx={{ my: 3, borderColor: 'grey.700' }} />
           <Typography variant="caption" color="grey.500">
-            © {new Date().getFullYear()} Bales. Seluruh hak cipta dilindungi.
+            © {new Date().getFullYear()} Balesin. Seluruh hak cipta dilindungi.
           </Typography>
         </Container>
       </Box>

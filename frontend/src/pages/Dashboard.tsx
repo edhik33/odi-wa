@@ -365,7 +365,7 @@ export default function Dashboard() {
             <IconButton onClick={() => setSidebarOpen(!sidebarOpen)} sx={{ display: { xs: 'inline-flex', md: 'none' }, flexShrink: 0 }}><MenuIcon /></IconButton>
             <Box sx={{ width: 40, height: 40, bgcolor: "primary.main", borderRadius: 1.5, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}><Typography sx={{ fontWeight: 900, fontSize: 16, color: "#fff" }}>B</Typography></Box>
             <Box sx={{ minWidth: 0, display: { xs: 'none', sm: 'block' } }}>
-              <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>Bales</Typography>
+              <Typography sx={{ fontWeight: 800, fontSize: 14, lineHeight: 1.1 }}>Balesin</Typography>
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -910,7 +910,7 @@ export default function Dashboard() {
                 control={<Checkbox checked={riskAck} onChange={e => setRiskAck(e.target.checked)} size="small" color={riskAck ? 'primary' : 'error'} sx={{ py: 0, pl: 0 }} />}
                 label={
                   <Typography variant="caption" color={riskAck ? 'text.secondary' : 'error'} sx={{ textAlign: 'left', display: 'block', lineHeight: 1.4 }}>
-                    Saya paham WhatsApp saya berisiko diblokir dan Bales tidak bertanggung jawab atas hal itu.
+                    Saya paham WhatsApp saya berisiko diblokir dan Balesin tidak bertanggung jawab atas hal itu.
                   </Typography>
                 }
               />

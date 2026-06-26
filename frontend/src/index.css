@@ -1,5 +1,5 @@
 /* ============================================================
-   DESIGN TOKENS — Bales
+   DESIGN TOKENS — Balesin
    Single source of truth untuk warna, spacing, radius, font.
    Pakai var(--token) di CSS, atau theme.ts untuk MUI sx.
    ============================================================ */

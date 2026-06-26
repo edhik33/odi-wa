@@ -64,7 +64,7 @@ export default function Login() {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', p: 2 }}>
       <Card sx={{ width: '100%', maxWidth: 400 }}>
         <Box sx={{ textAlign: 'center', pt: 3, pb: 0, px: { xs: 3, sm: 4 } }}>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, color: "primary.main", textAlign: "center", mb: 0.5 }}>Bales</Typography>
+          <Typography sx={{ fontWeight: 900, fontSize: 28, color: "primary.main", textAlign: "center", mb: 0.5 }}>Balesin</Typography>
           <Typography variant="body2" color="text.secondary" sx={{ textAlign: "center", mb: 2 }}>Masuk ke dashboard</Typography>
         </Box>
         <CardContent sx={{ pt: 1, px: { xs: 3, sm: 4 }, pb: { xs: 3, sm: 4 }, '&:last-child': { pb: { xs: 3, sm: 4 } } }}>

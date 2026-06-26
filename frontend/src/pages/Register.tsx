@@ -73,7 +73,7 @@ export default function Register() {
     <Box sx={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'background.default', p: 2 }}>
       <Card sx={{ width: '100%', maxWidth: 420 }}>
         <Box sx={{ textAlign: 'center', pt: 3, pb: 0, px: { xs: 3, sm: 4 } }}>
-          <Typography sx={{ fontWeight: 900, fontSize: 28, color: "primary.main", textAlign: "center", mb: 1 }}>Bales</Typography>
+          <Typography sx={{ fontWeight: 900, fontSize: 28, color: "primary.main", textAlign: "center", mb: 1 }}>Balesin</Typography>
         </Box>
         <CardContent sx={{ pt: 1, px: { xs: 3, sm: 4 }, pb: { xs: 3, sm: 4 }, '&:last-child': { pb: { xs: 3, sm: 4 } } }}>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
