@@ -97,7 +97,7 @@ func seedPlans() {
 	plans := []models.Plan{
 		{Code: "starter", Name: "Starter", Description: "1 nomor WhatsApp, cocok untuk mulai.", Price: 99000, BillingPeriod: "monthly", MaxNumbers: 1, MaxAIRepliesMonthly: 1000, SortOrder: 1},
 		{Code: "growth", Name: "Growth", Description: "3 nomor, untuk tim yang berkembang.", Price: 249000, BillingPeriod: "monthly", MaxNumbers: 3, MaxAIRepliesMonthly: 5000, IsPopular: true, SortOrder: 2},
-		{Code: "pro", Name: "Pro", Description: "10 nomor, untuk bisnis serius.", Price: 699000, BillingPeriod: "monthly", MaxNumbers: 10, MaxAIRepliesMonthly: 20000, SortOrder: 3},
+		{Code: "pro", Name: "Pro", Description: "10 nomor, untuk bisnis serius.", Price: 699000, BillingPeriod: "monthly", MaxNumbers: 999, MaxAIRepliesMonthly: 20000, SortOrder: 3},
 	}
 	DB.Create(&plans)
 	log.Println("Seeder: plans dibuat (starter, growth, pro)")
