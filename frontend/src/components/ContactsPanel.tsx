@@ -19,8 +19,9 @@ import api from '../services/api';
 
 const EMPTY: Partial<SavedContact> = { number: '', name: '', notes: '', tags: '' };
 
-export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
+export default function ContactsPanel({ agentId, agentStatus, onBroadcast, onOpenChat }: {
   agentId: number;
+  agentStatus: string;
   onBroadcast: (recipients: string) => void;
   onOpenChat: (number: string) => void;
 }) {
@@ -147,12 +148,22 @@ export default function ContactsPanel({ agentId, onBroadcast, onOpenChat }: {
       )}
 
       {isLoading ? (
-        <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /></Box>
+        <Box sx={{ textAlign: 'center', py: 4 }}><CircularProgress size={24} /><Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>Memuat kontak…</Typography></Box>
+      ) : contacts.length === 0 && agentStatus === 'connected' ? (
+        <Paper variant="outlined" sx={{ p: { xs: 3, md: 5 }, textAlign: 'center', borderStyle: 'dashed', borderColor: 'divider', borderRadius: 2, bgcolor: 'action.hover' }}>
+          <Box sx={{ mb: 1.5, color: 'primary.main' }}>
+            <CircularProgress size={36} />
+          </Box>
+          <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Menyinkronkan kontak…</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ maxWidth: 400, mx: 'auto' }}>
+            Kontak dari WhatsApp sedang ditarik. Proses ini berjalan otomatis, biasanya selesai dalam 1—2 menit.
+          </Typography>
+        </Paper>
       ) : contacts.length === 0 ? (
         <EmptyState
           icon={<PeopleIcon sx={{ fontSize: 48 }} />}
           title={q || tag ? 'Tidak ada kontak' : 'Belum ada kontak'}
-          description={q || tag ? 'Coba ubah filter atau kata kunci.' : 'Kontak akan terisi otomatis saat pelanggan chat.'}
+          description={q || tag ? 'Coba ubah filter atau kata kunci.' : 'Kontak tersimpan otomatis saat pelanggan chat WhatsApp kamu.'}
         />
       ) : (
         <Paper variant="outlined" sx={{ mb: 1 }}>

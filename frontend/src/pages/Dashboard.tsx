@@ -490,15 +490,6 @@ export default function Dashboard() {
               </CardContent>
             </Card>
 
-            <Card sx={{ mb: 1.5 }}>
-              <CardContent sx={{ pb: 1, '&:last-child': { pb: 1 } }}>
-                <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 0.5, display: 'block' }}>
-                  Langganan
-                </Typography>
-                <UsageCard />
-              </CardContent>
-            </Card>
-
             <Card>
               <CardContent sx={{ pb: 1.5, '&:last-child': { pb: 1.5 } }}>
                 <Typography variant="caption" color="text.secondary" sx={{ fontWeight: 700, textTransform: 'uppercase', mb: 1, display: 'block' }}>
@@ -854,7 +845,7 @@ export default function Dashboard() {
         {tab === 'template' && <TemplatePanel agentId={agentId} />}
         {tab === 'follow-up' && <FollowUpPanel agentId={agentId} />}
         {tab === 'kontak' && (
-          <ContactsPanel agentId={agentId}
+          <ContactsPanel agentId={agentId} agentStatus={status}
             onBroadcast={(recipients) => { setSeed({ kind: 'broadcast', value: recipients, n: Date.now() }); setTab('broadcast'); }}
             onOpenChat={(number) => { setSeed({ kind: 'inbox', value: number, n: Date.now() }); setTab('inbox'); }} />
         )}
