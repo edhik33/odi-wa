@@ -493,10 +493,32 @@ func extractDestinationCity(msg string) string {
 }
 
 func maybeBuildShippingContext(agent models.Agent, msg string) string {
-	if agent.OriginCityID == 0 || !detectShippingIntent(msg) {
+	if agent.OriginCityID == 0 {
 		return ""
 	}
-	destText := extractDestinationCity(msg)
+
+	// Cek intent ongkir langsung
+	hasIntent := detectShippingIntent(msg)
+	destText := ""
+
+	if hasIntent {
+		destText = extractDestinationCity(msg)
+	} else {
+		// Follow-up: coba deteksi nama kota langsung (mis. "Jakarta Utara kak")
+		// dari chat setelah ambiguous list. Bersihkan suffix panggilan.
+		cleaned := strings.TrimSpace(msg)
+		for _, suffix := range []string{" kak", " gan", " min", " bro", " bang", " mas", " mbak", " mba", " ya", " dong"} {
+			cleaned = strings.TrimSuffix(cleaned, suffix)
+			cleaned = strings.TrimSpace(cleaned)
+		}
+		// Juga handle nomor (dari pilihan ambiguous)
+		if num, err := strconv.Atoi(cleaned); err == nil && num > 0 {
+			destText = fmt.Sprintf("%d", num)
+		} else if len(cleaned) >= 3 {
+			destText = cleaned
+		}
+	}
+
 	if destText == "" {
 		return ""
 	}
