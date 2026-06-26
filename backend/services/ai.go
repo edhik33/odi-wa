@@ -386,3 +386,39 @@ func truncateForLog(s string, max int) string {
 	}
 	return s[:max] + "..."
 }
+
+// ContextualFallback = panggil AI untuk bikin pesan "maaf" yang kontekstual,
+// bukan generik, berdasarkan history + knowledge.
+func ContextualFallback(agentID uint, systemPrompt, tone, userMsg string, history []models.ChatHistory) (string, error) {
+	enhancedPrompt := systemPrompt +
+		"\n\nTUGAS KAMU SEKARANG: Kamu tidak bisa menjawab pertanyaan terakhir customer karena informasi tidak tersedia. " +
+		"Buat pesan maaf SINGKAT (maks 1-2 kalimat) yang kontekstual — nyambung dengan topik yang sedang dibahas. " +
+		"Jangan bilang \"cek dulu\" atau \"hubungi admin\" — cukup bilang belum ada info untuk topik itu. " +
+		"Contoh: kalau ditanya ongkir, bilang ongkirnya belum tersedia. Kalau ditanya produk, bilang produknya belum ada info. " +
+		"JANGAN menyebut kata \"eskalasi\", \"admin\", atau \"CS manusia\"."
+
+	// Susun pesan dengan history
+	messages := []openai.ChatCompletionMessage{
+		{Role: openai.ChatMessageRoleSystem, Content: enhancedPrompt},
+	}
+	for _, h := range history {
+		if h.Message != "" {
+			messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: h.Message})
+		}
+		if h.Reply != "" {
+			messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleAssistant, Content: h.Reply})
+		}
+	}
+	messages = append(messages, openai.ChatCompletionMessage{Role: openai.ChatMessageRoleUser, Content: userMsg})
+
+	p := activePreset()
+	req := openai.ChatCompletionRequest{Model: p.Model, Messages: messages, MaxTokens: 150, Temperature: 0.9}
+	resp, err := clientForPreset(p).CreateChatCompletion(context.Background(), req)
+	if err != nil {
+		return "", err
+	}
+	if len(resp.Choices) == 0 {
+		return "", nil
+	}
+	return strings.TrimSpace(resp.Choices[0].Message.Content), nil
+}

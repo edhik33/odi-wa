@@ -318,7 +318,13 @@ func processMessage(agentID uint, sender types.JID, in services.IncomingMessage)
 		escalate = false
 	}
 	if escalate {
-		reply = deferMessage
+		// Ganti fallback generik dengan AI call kontekstual — biar nyambung topik.
+		ctxReply, err := services.ContextualFallback(agentID, prompt, tone, in.Text, history)
+		if err == nil && ctxReply != "" {
+			reply = ctxReply
+		} else {
+			reply = deferMessage
+		}
 		_ = database.DB.Create(&models.Handoff{AgentID: agentID, Sender: num, LastMsg: displayText}).Error
 		log.Printf("Eskalasi (agent %d) dari %s: %q", agentID, num, in.Text)
 	}
