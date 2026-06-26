@@ -65,7 +65,7 @@ func main() {
 	api := r.Group("/api")
 	{
 		api.POST("/login", handlers.Login)
-		api.POST("/register", handlers.Register)
+		// REGISTER DISABLED: api.POST("/register", handlers.Register)
 		api.GET("/verify-email", handlers.VerifyEmail)
 		api.POST("/forgot-password", handlers.ForgotPassword)
 		api.POST("/reset-password", handlers.ResetPassword)

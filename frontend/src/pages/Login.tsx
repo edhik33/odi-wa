@@ -87,7 +87,6 @@ export default function Login() {
             <Link href="/lupa-password" underline="hover">Lupa password?</Link>
           </Typography>
           <Typography variant="body2" sx={{ textAlign: 'center' }}>
-            Belum punya akun? <Link href="/daftar" underline="hover">Daftar gratis</Link>
           </Typography>
         </CardContent>
       </Card>

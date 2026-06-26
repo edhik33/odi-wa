@@ -46,7 +46,7 @@ export default function App() {
         <Routes>
           <Route path="/" element={<HomeRoute />} />
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
-          <Route path="/daftar" element={<GuestRoute><Register /></GuestRoute>} />
+          <Route path="/daftar" element={<Navigate to="/login" replace />} />
           <Route path="/lupa-password" element={<ForgotPassword />} />
 
           {/* Panel operator platform (super admin) */}

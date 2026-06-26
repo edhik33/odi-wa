@@ -57,7 +57,7 @@ export default function Landing() {
   const navigate = useNavigate();
   const { data: plans } = usePublicPlans();
   const loggedIn = !!localStorage.getItem('token');
-  const goToCta = () => navigate(loggedIn ? '/app' : '/daftar');
+  const goToCta = () => navigate(loggedIn ? '/app' : '/login');
 
   return (
     <Box sx={{ bgcolor: 'background.default' }}>
@@ -69,7 +69,7 @@ export default function Landing() {
           </Stack>
           <Stack direction="row" spacing={1}>
             <Button onClick={() => navigate('/login')}>Masuk</Button>
-            <Button variant="contained" onClick={() => navigate(loggedIn ? '/app' : '/daftar')}>
+            <Button variant="contained" onClick={() => navigate(loggedIn ? '/app' : '/login')}>
               {loggedIn ? 'Dashboard' : 'Coba Gratis'}
             </Button>
           </Stack>
@@ -190,7 +190,7 @@ export default function Landing() {
                       <Bullet text="Knowledge base sendiri" />
                       <Bullet text="Alih ke CS manusia otomatis" />
                     </Stack>
-                    <Button fullWidth variant={p.is_popular ? 'contained' : 'outlined'} onClick={() => navigate('/daftar')} sx={{ fontWeight: 700 }}>
+                    <Button fullWidth variant={p.is_popular ? 'contained' : 'outlined'} onClick={() => navigate('/login')} sx={{ fontWeight: 700 }}>
                       Mulai Sekarang
                     </Button>
                   </CardContent>
@@ -210,7 +210,7 @@ export default function Landing() {
           <Typography sx={{ opacity: 0.9, mb: 4, fontSize: 18 }}>
             Coba ChatLoop gratis tujuh hari. Tanpa kartu kredit, tanpa ribet. Rasakan sendiri bedanya saat tak ada lagi chat yang terlewat.
           </Typography>
-          <Button variant="contained" size="large" onClick={() => navigate(loggedIn ? '/app' : '/daftar')}
+          <Button variant="contained" size="large" onClick={() => navigate(loggedIn ? '/app' : '/login')}
             sx={{ bgcolor: '#fff', color: 'primary.dark', fontWeight: 800, px: 5, py: 1.5, '&:hover': { bgcolor: '#f0f0f0' } }}>
             {loggedIn ? 'Buka Dashboard' : 'Mulai Gratis Sekarang'}
           </Button>
