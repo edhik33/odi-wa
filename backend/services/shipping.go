@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log"
 	"net/http"
 	"net/url"
 	"regexp"
@@ -159,13 +160,16 @@ func SeedShippingCities() {
 func seedShippingProvinces() {
 	var count int64
 	database.DB.Model(&models.ShippingProvince{}).Count(&count)
+	log.Printf("[Seed] Provinces count: %d", count)
 	if count > 0 {
 		return
 	}
 	data, err := shippingSQL.ReadFile("data/provinces.sql")
 	if err != nil {
+		log.Printf("[Seed] ERROR read provinces.sql: %v", err)
 		return
 	}
+	log.Printf("[Seed] Provinces SQL loaded: %d bytes", len(data))
 	records := parseSQLValues(string(data))
 	if len(records) == 0 {
 		return
