@@ -491,7 +491,7 @@ func maybeBuildShippingContext(agent models.Agent, msg string) string {
 
 	cities := services.ResolveCity(destText)
 	if len(cities) == 0 {
-		return "" // kota gak ketemu, AI akan tanya manual
+		return "\n\nONGKIR_NOTFOUND: Kota \"" + destText + "\" tidak ditemukan. JANGAN eskalasi. Bilang ke customer: \"Maaf kak, kota \"" + destText + "\" belum tersedia di sistem kami. Boleh sebutkan kota/kabupaten yang lebih spesifik ya.\""
 	}
 	if len(cities) > 1 {
 		// Ambiguous — kasih pilihan ke AI
@@ -512,7 +512,8 @@ func maybeBuildShippingContext(agent models.Agent, msg string) string {
 
 	results, err := services.CheckShippingCost(agent.OriginCityID, city.RajaOngkirID, agent.DefaultWeightGram, couriers)
 	if err != nil {
-		return "" // biar AI jawab fallback
+		// API gagal (rate limit / error) — kasih konteks ke AI biar jawab jujur, bukan eskalasi.
+		return "\n\nONGKIR_ERROR: Cek ongkir realtime sedang gangguan. JANGAN eskalasi. Bilang ke customer: \"Maaf kak, cek ongkir realtime sedang gangguan. Boleh kirim detail pesanan (produk + alamat), nanti kami bantu cek manual ya.\""
 	}
 
 	var sb strings.Builder
