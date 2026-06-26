@@ -146,13 +146,31 @@ type ClosingRecord struct {
 	CreatedAt      time.Time  `json:"created_at"`
 }
 
+// ShippingProvince = tabel provinsi RajaOngkir V2 (referensi statis, di-seed dari SQL).
+type ShippingProvince struct {
+	ID           uint   `gorm:"primaryKey" json:"id"`
+	RajaOngkirID int    `gorm:"uniqueIndex" json:"rajaongkir_id"`
+	Name         string `gorm:"size:100" json:"name"`
+}
+
 // ShippingCity = daftar kota/kabupaten dari RajaOngkir (cache lokal).
 type ShippingCity struct {
-	ID              uint   `gorm:"primaryKey" json:"id"`
-	RajaOngkirID    int    `gorm:"uniqueIndex" json:"rajaongkir_id"`
-	Province        string `gorm:"size:100" json:"province"`
-	Type            string `gorm:"size:20" json:"type"` // Kota / Kabupaten
-	CityName        string `gorm:"size:100" json:"city_name"`
-	FullName        string `gorm:"size:200" json:"full_name"` // "Kota Bandung"
-	SearchText      string `gorm:"type:text" json:"-"`        // lowercase untuk search
+	ID              uint             `gorm:"primaryKey" json:"id"`
+	RajaOngkirID    int              `gorm:"uniqueIndex" json:"rajaongkir_id"`
+	ProvinceID      uint             `gorm:"index" json:"province_id"`
+	ProvinceRel     ShippingProvince `gorm:"foreignKey:ProvinceID;references:ID" json:"-"`
+	Province        string           `gorm:"size:100" json:"province"`
+	Type            string           `gorm:"size:20" json:"type"` // Kota / Kabupaten
+	CityName        string           `gorm:"size:100" json:"city_name"`
+	FullName        string           `gorm:"size:200" json:"full_name"` // "Kota Bandung"
+	SearchText      string           `gorm:"type:text" json:"-"`        // lowercase untuk search
+}
+
+// ShippingDistrict = daftar kecamatan dari RajaOngkir V2 (referensi statis, di-seed dari SQL).
+type ShippingDistrict struct {
+	ID           uint         `gorm:"primaryKey" json:"id"`
+	RajaOngkirID int          `gorm:"uniqueIndex" json:"rajaongkir_id"`
+	CityID       uint         `gorm:"index" json:"city_id"`
+	CityRel      ShippingCity `gorm:"foreignKey:CityID;references:ID" json:"-"`
+	Name         string       `gorm:"size:100" json:"name"`
 }

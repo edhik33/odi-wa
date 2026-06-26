@@ -1,11 +1,14 @@
 package services
 
 import (
+	"embed"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"net/url"
+	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,6 +16,9 @@ import (
 	"wa-assistant/backend/database"
 	"wa-assistant/backend/models"
 )
+
+//go:embed data/provinces.sql data/cities.sql data/districts.sql
+var shippingSQL embed.FS
 
 // ShippingResult = satu hasil ongkir dari RajaOngkir V2.
 type ShippingResult struct {
@@ -138,74 +144,207 @@ func SearchCityViaAPI(query string) []models.ShippingCity {
 	return cities
 }
 
-// SeedShippingCities = impor daftar kota dari RajaOngkir V2 (POST search).
+// SeedShippingCities = impor lengkap provinsi, kota, dan kecamatan dari SQL dump RajaOngkir V2.
+// Idempoten: skip kalau data sudah ada.
 func SeedShippingCities() {
+	// 1. Seed provinsi
+	seedShippingProvinces()
+	// 2. Seed kota (perlu province_id dari step 1)
+	seedShippingCitiesFromSQL()
+	// 3. Seed kecamatan (perlu city_id dari step 2)
+	seedShippingDistricts()
+}
+
+// seedShippingProvinces mengisi shipping_provinces dari provinces.sql.
+func seedShippingProvinces() {
+	var count int64
+	database.DB.Model(&models.ShippingProvince{}).Count(&count)
+	if count > 0 {
+		return
+	}
+	data, err := shippingSQL.ReadFile("data/provinces.sql")
+	if err != nil {
+		return
+	}
+	records := parseSQLValues(string(data))
+	if len(records) == 0 {
+		return
+	}
+	for _, rec := range records {
+		id, _ := strconv.Atoi(rec[0])
+		database.DB.Create(&models.ShippingProvince{
+			RajaOngkirID: id,
+			Name:         rec[1],
+		})
+	}
+}
+
+// seedShippingCitiesFromSQL mengisi shipping_cities dari cities.sql, menautkan province_id via
+// rajaongkir province ID → internal PK.
+func seedShippingCitiesFromSQL() {
 	var count int64
 	database.DB.Model(&models.ShippingCity{}).Count(&count)
 	if count > 100 {
 		return
 	}
-	apiKey := config.Env("RAJAONGKIR_API_KEY", "")
-	if apiKey == "" {
+	data, err := shippingSQL.ReadFile("data/cities.sql")
+	if err != nil {
 		return
 	}
+	records := parseSQLValues(string(data))
+	if len(records) == 0 {
+		return
+	}
+	// Build map: rajaongkir province ID → internal ShippingProvince.ID
+	provMap := map[int]uint{}
+	var provinces []models.ShippingProvince
+	database.DB.Find(&provinces)
+	for _, p := range provinces {
+		provMap[p.RajaOngkirID] = p.ID
+	}
 
-	// Gunakan search dengan karakter umum untuk tarik semua kota.
-	common := []string{"a", "i", "u", "e", "o", "k", "m", "n", "s", "p", "r", "t", "b", "d", "j", "l", "c"}
-	baseURL := config.Env("RAJAONGKIR_BASE_URL", "https://rajaongkir.komerce.id/api/v1")
-	client := &http.Client{Timeout: 15 * time.Second}
-	seen := map[int]bool{}
+	for _, rec := range records {
+		id, _ := strconv.Atoi(rec[0])
+		name := rec[1]
+		provinceROID, _ := strconv.Atoi(rec[2])
+		provinceInternalID := provMap[provinceROID]
 
-	for _, ch := range common {
-		if count > 1000 { // already enough
-			break
+		// Tentukan province name dan type
+		provinceName := ""
+		if p, ok := provinceByName(provMap, provinceROID); ok {
+			provinceName = p
 		}
-		reqURL := fmt.Sprintf("%s/destination/domestic-destination?search=%s&limit=200", baseURL, ch)
-		httpReq, _ := http.NewRequest("GET", reqURL, nil)
-		httpReq.Header.Set("key", apiKey)
+		cityType := "Kota"
+		fullName := name
+		searchText := strings.ToLower(name + " " + provinceName)
 
-		resp, err := client.Do(httpReq)
-		if err != nil {
-			continue
-		}
-		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		database.DB.Create(&models.ShippingCity{
+			RajaOngkirID: id,
+			ProvinceID:   provinceInternalID,
+			Province:     provinceName,
+			Type:         cityType,
+			CityName:     name,
+			FullName:     fullName,
+			SearchText:   searchText,
+		})
+	}
+}
 
-		var apiResp struct {
-			Data []struct {
-				ID         int    `json:"id"`
-				Label      string `json:"label"`
-				CityName   string `json:"city_name"`
-				Province   string `json:"province_name"`
-				District   string `json:"district_name"`
-				Subdistrict string `json:"subdistrict_name"`
-				ZipCode    string `json:"zip_code"`
-			} `json:"data"`
-		}
-		if err := json.Unmarshal(body, &apiResp); err != nil {
-			continue
-		}
+// seedShippingDistricts mengisi shipping_districts dari districts.sql, menautkan city_id via
+// rajaongkir city ID → internal ShippingCity.ID.
+func seedShippingDistricts() {
+	var count int64
+	database.DB.Model(&models.ShippingDistrict{}).Count(&count)
+	if count > 100 {
+		return
+	}
+	data, err := shippingSQL.ReadFile("data/districts.sql")
+	if err != nil {
+		return
+	}
+	records := parseSQLValues(string(data))
+	if len(records) == 0 {
+		return
+	}
+	// Build map: rajaongkir city ID → internal ShippingCity.ID
+	cityMap := map[int]uint{}
+	var cities []models.ShippingCity
+	database.DB.Find(&cities)
+	for _, c := range cities {
+		cityMap[c.RajaOngkirID] = c.ID
+	}
 
-		for _, c := range apiResp.Data {
-			if seen[c.ID] {
+	for _, rec := range records {
+		id, _ := strconv.Atoi(rec[0])
+		name := rec[1]
+		cityROID, _ := strconv.Atoi(rec[2])
+		cityInternalID := cityMap[cityROID]
+		if cityInternalID == 0 {
+			continue // skip district yang city-nya tidak ditemukan
+		}
+		database.DB.Create(&models.ShippingDistrict{
+			RajaOngkirID: id,
+			CityID:       cityInternalID,
+			Name:         name,
+		})
+	}
+}
+
+// provinceByName returns province name by rajaongkir province ID from the loaded map.
+func provinceByName(provMap map[int]uint, roID int) (string, bool) {
+	// This requires reverse lookup — we need the province name from internal ID.
+	// We already loaded all provinces; iterate to find.
+	var p models.ShippingProvince
+	if database.DB.Where("id = ?", provMap[roID]).First(&p).Error == nil {
+		return p.Name, true
+	}
+	return "", false
+}
+
+// parseSQLValues mengekstrak array of array string dari VALUES di SQL INSERT.
+// Format: VALUES (1, 'Name', ...), (2, 'Name2', ...);
+// Returns [][]string — each row is a slice of field values.
+func parseSQLValues(sql string) [][]string {
+	// Cari bagian VALUES ... ;
+	re := regexp.MustCompile(`(?s)VALUES\s+(.+);`)
+	m := re.FindStringSubmatch(sql)
+	if len(m) < 2 {
+		return nil
+	}
+	valsStr := m[1]
+
+	// Parse manual: iterasi karakter, track depth dan quote
+	var result [][]string
+	var currentRow []string
+	var currentField strings.Builder
+	inQuote := false
+	depth := 0
+
+	for i := 0; i < len(valsStr); i++ {
+		ch := valsStr[i]
+
+		if ch == '\'' {
+			if inQuote && i+1 < len(valsStr) && valsStr[i+1] == '\'' {
+				currentField.WriteByte('\'')
+				i++
 				continue
 			}
-			seen[c.ID] = true
-			cityType := "Kota"
-			if c.Subdistrict != "" && c.Subdistrict != "-" {
-				cityType = "Kecamatan"
+			inQuote = !inQuote
+			continue
+		}
+
+		if inQuote {
+			currentField.WriteByte(ch)
+			continue
+		}
+
+		switch ch {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				// End of row
+				currentRow = append(currentRow, strings.TrimSpace(currentField.String()))
+				currentField.Reset()
+				if len(currentRow) > 0 {
+					result = append(result, currentRow)
+				}
+				currentRow = nil
 			}
-			fullName := c.Label
-			searchText := strings.ToLower(c.CityName + " " + c.Province + " " + c.District)
-			database.DB.Create(&models.ShippingCity{
-				RajaOngkirID: c.ID,
-				Province:     c.Province,
-				Type:         cityType,
-				CityName:     c.CityName,
-				FullName:     fullName,
-				SearchText:   searchText,
-			})
-			count++
+		case ',':
+			if depth == 1 {
+				// Field separator within a row
+				currentRow = append(currentRow, strings.TrimSpace(currentField.String()))
+				currentField.Reset()
+			}
+		case ' ', '	', '\r', '\n':
+			// Skip whitespace outside quotes and outside fields
+			continue
+		default:
+			currentField.WriteByte(ch)
 		}
 	}
+
+	return result
 }
