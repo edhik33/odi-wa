@@ -28,13 +28,23 @@ function GuestRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function HomeRoute() {
+  const token = localStorage.getItem('token');
+  if (token) {
+    let isAdmin = false;
+    try { isAdmin = !!JSON.parse(localStorage.getItem('user') || '{}')?.is_super_admin; } catch {}
+    return <Navigate to={isAdmin ? '/admin' : '/app'} replace />;
+  }
+  return <Navigate to="/login" replace />;
+}
+
 export default function App() {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          <Route path="/" element={<HomeRoute />} />
           <Route path="/login" element={<GuestRoute><Login /></GuestRoute>} />
           <Route path="/daftar" element={<GuestRoute><Register /></GuestRoute>} />
           <Route path="/lupa-password" element={<ForgotPassword />} />

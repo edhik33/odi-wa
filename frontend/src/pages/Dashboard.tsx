@@ -32,7 +32,6 @@ import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import SmartToyIcon from '@mui/icons-material/SmartToyOutlined';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import UsageCard from '../components/UsageCard';
-import BillingPanel from '../components/BillingPanel';
 import InboxPanel from '../components/InboxPanel';
 import TestChatPanel from '../components/TestChatPanel';
 import BroadcastPanel from '../components/BroadcastPanel';
@@ -79,7 +78,7 @@ const NAV_GROUPS = [
   ] },
   { section: 'Akun', items: [
     { id: 'settings', label: 'Settings', icon: <SettingsIcon fontSize="small" /> },
-    { id: 'langganan', label: 'Langganan', icon: <CreditCardIcon fontSize="small" /> },
+    
   ] },
 ];
 const NAV_ITEMS = NAV_GROUPS.flatMap(g => g.items);
@@ -289,7 +288,7 @@ export default function Dashboard() {
       setTab('dashboard');
     } catch (err: any) {
       if (err?.response?.status === 403) {
-        if (await swalConfirm('Jumlah CS sudah mencapai batas paketmu.', 'Mau lihat pilihan paket untuk menambah CS?')) setTab('langganan');
+        swalToast('Kuota CS penuh, upgrade paket kamu dulu ya', 'warning'); return null;
       } else {
         await swalAlert(err?.response?.data?.error || 'Gagal menambah CS.', 'error');
       }
@@ -815,7 +814,6 @@ export default function Dashboard() {
           </Box>
         )}
 
-        {tab === 'langganan' && <BillingPanel />}
         {tab === 'handoff' && (
           <Box>
             <Typography variant="h6" sx={{ mb: 1 }}>Butuh CS ({handoffs.length})</Typography>
