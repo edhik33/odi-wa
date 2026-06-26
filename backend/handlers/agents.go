@@ -519,6 +519,7 @@ func cleanShippingWord(w string) string {
 
 func maybeBuildShippingContext(agent models.Agent, msg string, history []models.ChatHistory) string {
 	if agent.OriginCityID == 0 {
+		log.Printf("[ONGKIR-DEBUG] OriginCityID = 0, skip")
 		return ""
 	}
 
@@ -528,6 +529,7 @@ func maybeBuildShippingContext(agent models.Agent, msg string, history []models.
 
 	if hasIntent {
 		destText = extractDestinationCity(msg)
+		log.Printf("[ONGKIR-DEBUG] intent=true, destText=%q", destText)
 	} else {
 		if !lastReplyAskedShippingFollowup(history) {
 			return ""
@@ -567,6 +569,7 @@ func maybeBuildShippingContext(agent models.Agent, msg string, history []models.
 	}
 
 	cities := services.ResolveCity(destText)
+	log.Printf("[ONGKIR-DEBUG] ResolveCity(%q) => %d results", destText, len(cities))
 	if len(cities) == 0 {
 		return "\n\nONGKIR_NOTFOUND: Kota \"" + destText + "\" tidak ditemukan. JANGAN eskalasi. Bilang ke customer: \"Maaf kak, kota \"" + destText + "\" belum tersedia di sistem kami. Boleh sebutkan kota/kabupaten yang lebih spesifik ya.\""
 	}
