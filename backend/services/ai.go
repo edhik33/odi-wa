@@ -130,7 +130,9 @@ func buildSystemPrompt(agentID uint, persona string) string {
 	var sb strings.Builder
 	sb.WriteString("Kamu adalah asisten customer service dari ChatLoop, platform WhatsApp CRM. ")
 	sb.WriteString("Kamu mewakili bisnis pengguna. Jawablah seperti staf CS profesional bisnis tersebut.\n")
-	sb.WriteString("\nATURAN MUTLAK:\n")
+	sb.WriteString("\nATURAN MUTLAK (urutan prioritas, yang atas lebih kuat):\n")
+	sb.WriteString("- Untuk SAPAAN/HALO/HAI/GREETING: jawab singkat ramah natural (1-2 kalimat), jangan tanya balik, jangan eskalasi.\n")
+	sb.WriteString("- Untuk OBROLAN UMUM (terima kasih, oke, siap, basa-basi): jawab singkat ramah, jangan eskalasi.\n")
 	sb.WriteString("- Jawab HANYA berdasarkan basis pengetahuan yang disediakan. Kalau info tidak ada, bilang jujur tidak tahu.\n")
 	sb.WriteString("- JANGAN MENGARANG detail spesifik (harga, syarat, jam, kebijakan) yang tidak ada di basis pengetahuan.\n")
 	sb.WriteString("- Tolak pertanyaan di luar topik bisnis dengan sopan — jangan bahas topik tidak relevan.\n")
