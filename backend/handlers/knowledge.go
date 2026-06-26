@@ -194,7 +194,19 @@ func SetupWizard(c *gin.Context) {
 			Update("system_prompt", systemPrompt)
 	}
 
-	// 2. Generate Knowledge FAQ (15 Q&A)
+	// 2. Auto-create ClosingForm (schema data closing) kalau belum ada.
+	var cfCount int64
+	database.DB.Model(&models.ClosingForm{}).Where("agent_id = ?", aid).Count(&cfCount)
+	if cfCount == 0 {
+		defaultSchema := `{"fields":[{"name":"Nama","key":"customer_name"},{"name":"Produk","key":"product"},{"name":"Varian","key":"variant"},{"name":"Jumlah","key":"quantity"},{"name":"Alamat","key":"address"},{"name":"Nomor WA","key":"phone"},{"name":"Metode Bayar","key":"payment_method"},{"name":"Catatan","key":"notes"}]}`
+		database.DB.Create(&models.ClosingForm{
+			AgentID:    aid,
+			SchemaJSON: defaultSchema,
+			Enabled:    true,
+		})
+	}
+
+	// 3. Generate Knowledge FAQ (15 Q&A)
 	kbPrompt := fmt.Sprintf(`Buatkan 15 pasangan Tanya-Jawab FAQ knowledge base dari profil bisnis berikut.
 Gunakan bahasa Indonesia natural dan ramah.
 Fokus pada pertanyaan yang sering ditanyakan pelanggan.
