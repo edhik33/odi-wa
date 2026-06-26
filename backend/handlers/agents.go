@@ -468,7 +468,13 @@ func detectShippingIntent(msg string) bool {
 func extractDestinationCity(msg string) string {
 	msg = strings.ToLower(msg)
 	patterns := []string{"ke ", "tujuan ", "ongkir ", "kirim "}
-	stopWords := map[string]bool{"berapa": true, "kak": true, "ya": true, "berapa?": true, "dong": true, "sih": true, "nih": true}
+	stopWords := map[string]bool{
+		"berapa": true, "kak": true, "ya": true, "dong": true, "sih": true, "nih": true,
+		"brp": true, "gan": true, "min": true, "bro": true, "bang": true, "mas": true,
+		"mbak": true, "mba": true, "om": true, "bos": true, "koh": true, "deh": true,
+		"yah": true, "weh": true, "lur": true, "boss": true, "kuy": true, "guy": true,
+		"brapa": true, "berape": true, "kaka": true, "abang": true, "kanda": true,
+	}
 	for _, p := range patterns {
 		if idx := strings.Index(msg, p); idx >= 0 {
 			rest := msg[idx+len(p):]
