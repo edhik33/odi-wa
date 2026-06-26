@@ -518,6 +518,11 @@ func cleanShippingWord(w string) string {
 }
 
 func maybeBuildShippingContext(agent models.Agent, msg string, history []models.ChatHistory) string {
+	msgPreview := msg
+	if len(msgPreview) > 80 {
+		msgPreview = msgPreview[:80]
+	}
+	log.Printf("[ONGKIR-DEBUG] called: origin=%d, msg=%q", agent.OriginCityID, msgPreview)
 	if agent.OriginCityID == 0 {
 		log.Printf("[ONGKIR-DEBUG] OriginCityID = 0, skip")
 		return ""
